@@ -8,6 +8,7 @@ import { DEFAULT_STATUS_BAR, defaultImageParams } from "@/lib/constants";
 import type { Chat, MultiMode } from "@/lib/types";
 import { uid } from "@/lib/utils";
 import { ChatPane, CustomPromptModal } from "./ChatPane";
+import { WechatDock } from "./WechatPane";
 import { ConnectionPanel } from "./ConnectionPanel";
 import { ParamsPane } from "./ParamsPane";
 import { PurePane } from "./PurePane";
@@ -72,6 +73,7 @@ function Shell() {
 
       <main className="relative min-h-0 flex-1 overflow-hidden">
         <div className="h-full">{body}</div>
+        {tab === "chat" && chat && !chat.isDraft ? <WechatDock chat={chat} /> : null}
         <Sidebar />
         <ConnectionPanel />
       </main>

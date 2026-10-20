@@ -363,6 +363,7 @@ export function systemFor(task: string, extra?: string, styleExtra?: string, ima
   }
   if (task === "memory") return MEMORY_SYSTEM;
   if (task === "rewrite") return PROMPT_REWRITE_SYSTEM;
+  if (task === "wechat") return extra?.trim() || "你在用手机微信和用户聊天。只返回 JSON。";
   if (task === "personalize") {
     const core = extra
       ? `${POLISH_SYSTEM}\n\n【个性化要求·最高优先】\n${extra}\n没点名的栏仍按完善标准写满并对齐。已填的名字、已填的外貌仍然冻结。`

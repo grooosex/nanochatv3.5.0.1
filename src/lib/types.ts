@@ -130,6 +130,35 @@ export interface UserShot {
   i2i: boolean;
 }
 
+export interface WechatAttach {
+  blobId: string;
+  kind: "photo" | "sticker";
+}
+
+export interface WechatLine {
+  id: string;
+  role: "user" | "assistant";
+  text: string;
+  attachments: WechatAttach[];
+  inner?: string;
+  gen?: { status: "pending" | "done" | "error"; blobId?: string; error?: string };
+}
+
+export interface WechatSession {
+  charId: string;
+  lines: WechatLine[];
+  earlier: string;
+  draft: string;
+  pending: WechatAttach[];
+  armed: boolean;
+}
+
+export interface WechatLog {
+  charName: string;
+  lines: WechatLine[];
+  summary: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant" | "narrator";
@@ -141,6 +170,7 @@ export interface ChatMessage {
   userImages?: UserShot[];
   userImageBlobId?: string;
   userImageI2i?: boolean;
+  wechatLog?: WechatLog;
 }
 
 export interface MemorySnap {

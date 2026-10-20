@@ -19,6 +19,7 @@ import { compressRef } from "@/lib/ref-image";
 import { modelLabel, samplerLabel } from "@/lib/nai";
 import { extractGrokTail } from "@/lib/nai-tags";
 import { ImagePick } from "./ImagePick";
+import { openWechat } from "./WechatPane";
 import { saveBlob, useApp } from "@/lib/store";
 import { downloadBlob, cn } from "@/lib/utils";
 import { foldWindow, genPhaseLabel, stripStatus } from "@/lib/engine";
@@ -303,6 +304,7 @@ export function ChatPane({ chat }: { chat: Chat }) {
             onFile={() => undefined}
             onFiles={(files) => void addChatShots(chat.id, files, null)}
             onBlobs={(ids) => void addChatShots(chat.id, null, ids)}
+            onWechat={() => openWechat(chat)}
             render={(open) => (
               <button
                 type="button"
@@ -452,6 +454,22 @@ function Bubble({
   };
 
   if (msg.role === "user") {
+    if (msg.wechatLog) {
+      return (
+        <div className="mb-4 flex flex-col items-end">
+          <button
+            type="button"
+            className="rounded-[12px] border border-line bg-card px-4 py-3 text-[14px] text-ink"
+            onClick={() => useApp.getState().setUI({ wechatView: { chatId: chat.id, msgId: msg.id } })}
+          >
+            已保存的微信内容
+          </button>
+          <div className="mt-1.5 flex justify-end gap-1.5">
+            <Mini onClick={() => void branchFrom(chat.id, msg.id)} icon={<GitBranch className="size-3" />} label="开分支" />
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="mb-4 flex flex-col items-end">
         {messageShots(msg).length ? (

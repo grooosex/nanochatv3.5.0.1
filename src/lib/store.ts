@@ -25,6 +25,7 @@ import type {
   Settings,
   TabId,
   UserShot,
+  WechatSession,
 } from "./types";
 import { normalizeChatMemory } from "./chat-memory";
 import { uid, sortHistoryNewestFirst } from "./utils";
@@ -167,6 +168,7 @@ interface UI {
     backup: string;
     shotBackup: UserShot[] | null;
   } | null;
+  wechatView: { chatId: string; msgId: string } | null;
 }
 
 interface State {
@@ -186,6 +188,8 @@ interface State {
   ui: UI;
   composerDrafts: Record<string, string>;
   composerShots: Record<string, UserShot[]>;
+  wechatSessions: Record<string, WechatSession>;
+  wechatStickers: string[];
   hydrate: () => Promise<void>;
   toast: (text: string) => void;
   setUI: (p: Partial<UI>) => void;
@@ -239,6 +243,8 @@ interface State {
   setCooldown: (until: number) => void;
   setComposerDraft: (chatId: string, text: string) => void;
   setComposerShot: (chatId: string, shots: UserShot[] | null) => void;
+  setWechatSession: (chatId: string, session: WechatSession | null) => void;
+  setWechatStickers: (ids: string[]) => void;
 }
 
 const ui0 = (): UI => ({
@@ -269,6 +275,7 @@ const ui0 = (): UI => ({
   llmSettings: false,
   memoryHint: null,
   editUserMsg: null,
+  wechatView: null,
 });
 
 function persistChat(c: Chat) {
@@ -295,14 +302,18 @@ export const useApp = create<State>((set, get) => ({
   ui: ui0(),
   composerDrafts: {},
   composerShots: {},
+  wechatSessions: {},
+  wechatStickers: [],
 
   hydrate: async () => {
     const data = await loadAll();
-    const [pureRow, currentRow, draftsRow, shotsRow] = await Promise.all([
+    const [pureRow, currentRow, draftsRow, shotsRow, wechatRow, stickerRow] = await Promise.all([
       db.kv.get("pureParams"),
       db.kv.get("currentId"),
       db.kv.get("composerDrafts"),
       db.kv.get("composerShots"),
+      db.kv.get("wechatSessions"),
+      db.kv.get("wechatStickers"),
     ]);
     const live = data.chats.filter((c) => !c.isDraft).map((c) => {
       const mapped = {
@@ -345,6 +356,8 @@ export const useApp = create<State>((set, get) => ({
       history: sortHistoryNewestFirst(data.history ?? []),
       composerDrafts: parseComposerDrafts(draftsRow?.value),
       composerShots: parseComposerShots(shotsRow?.value),
+      wechatSessions: parseWechatSessions(wechatRow?.value),
+      wechatStickers: parseStickerIds(stickerRow?.value),
     });
   },
 
@@ -548,14 +561,17 @@ export const useApp = create<State>((set, get) => ({
     set((s) => {
       const composerDrafts = dropDrafts(s.composerDrafts, ids);
       const composerShots = dropShots(s.composerShots, ids);
+      const wechatSessions = dropWechat(s.wechatSessions, ids);
       void db.kv.put({ key: "composerDrafts", value: composerDrafts });
       void db.kv.put({ key: "composerShots", value: composerShots });
+      void db.kv.put({ key: "wechatSessions", value: wechatSessions });
       return {
         chats: moved,
         folders,
         currentId: ids.has(s.currentId || "") ? moved[0]?.id ?? null : s.currentId,
         composerDrafts,
         composerShots,
+        wechatSessions,
         ui: { ...s.ui, selectMode: false, selected: [], sortMode: false, menuId: null },
       };
     });
@@ -1032,6 +1048,21 @@ export const useApp = create<State>((set, get) => ({
       return { composerShots };
     });
   },
+
+  setWechatSession: (chatId, session) => {
+    set((s) => {
+      const wechatSessions = { ...s.wechatSessions };
+      if (session) wechatSessions[chatId] = session;
+      else delete wechatSessions[chatId];
+      void db.kv.put({ key: "wechatSessions", value: wechatSessions });
+      return { wechatSessions };
+    });
+  },
+
+  setWechatStickers: (ids) => {
+    set({ wechatStickers: ids });
+    void db.kv.put({ key: "wechatStickers", value: ids });
+  },
 }));
 
 function parseComposerDrafts(raw: unknown): Record<string, string> {
@@ -1075,6 +1106,35 @@ function parseComposerShots(raw: unknown): Record<string, UserShot[]> {
 
 function dropShots(shots: Record<string, UserShot[]>, ids: Set<string>) {
   const next = { ...shots };
+  for (const id of ids) delete next[id];
+  return next;
+}
+
+function parseStickerIds(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((id): id is string => typeof id === "string" && !!id);
+}
+
+function parseWechatSessions(raw: unknown): Record<string, WechatSession> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const out: Record<string, WechatSession> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (!k || !v || typeof v !== "object") continue;
+    const row = v as Partial<WechatSession>;
+    out[k] = {
+      charId: typeof row.charId === "string" ? row.charId : "",
+      lines: Array.isArray(row.lines) ? row.lines : [],
+      earlier: typeof row.earlier === "string" ? row.earlier : "",
+      draft: typeof row.draft === "string" ? row.draft : "",
+      pending: Array.isArray(row.pending) ? row.pending : [],
+      armed: row.armed === true,
+    };
+  }
+  return out;
+}
+
+function dropWechat(sessions: Record<string, WechatSession>, ids: Set<string>) {
+  const next = { ...sessions };
   for (const id of ids) delete next[id];
   return next;
 }
