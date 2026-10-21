@@ -60,6 +60,7 @@ export interface Character {
   uc: string;
   x: number;
   y: number;
+  wechatAvatarBlobId?: string;
 }
 
 export interface ImageParams {
@@ -141,22 +142,43 @@ export interface WechatLine {
   text: string;
   attachments: WechatAttach[];
   inner?: string;
+  images?: GenImage[];
+  /** 多人微信里这条是谁发的。单人没有。 */
+  speakerId?: string;
+  /** @deprecated 旧的单图框 */
   gen?: { status: "pending" | "done" | "error"; blobId?: string; error?: string };
+}
+
+export interface WechatRoom {
+  lines: WechatLine[];
+  earlier: string;
+  folded: number;
+  draft: string;
+  pending: WechatAttach[];
 }
 
 export interface WechatSession {
   charId: string;
   lines: WechatLine[];
   earlier: string;
+  folded: number;
   draft: string;
   pending: WechatAttach[];
   armed: boolean;
+  minimized: boolean;
+  /** 多人当前房间。角色 id，或 group。单人没有。 */
+  activeRoom?: string;
+  rooms?: Record<string, WechatRoom>;
 }
 
 export interface WechatLog {
   charName: string;
   lines: WechatLine[];
   summary: string;
+  voided?: boolean;
+  activeRoom?: string;
+  rooms?: Record<string, WechatRoom>;
+  roomNames?: Record<string, string>;
 }
 
 export interface ChatMessage {
@@ -340,6 +362,8 @@ export interface Settings {
   stParamSnapshot: LlmParams | null;
   /** 单独写生图提示词时用的预设。不改温度。未选则和以前一样。 */
   stImageActiveId: string | null;
+  /** 写微信回复时用的预设。不改温度，也不改微信的 JSON 格式。未选则和以前一样。 */
+  stWechatActiveId: string | null;
   naiKey: string;
   naiBase: string;
   naiConnected: boolean;

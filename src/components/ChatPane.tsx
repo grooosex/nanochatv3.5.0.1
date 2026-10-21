@@ -20,6 +20,7 @@ import { modelLabel, samplerLabel } from "@/lib/nai";
 import { extractGrokTail } from "@/lib/nai-tags";
 import { ImagePick } from "./ImagePick";
 import { openWechat } from "./WechatPane";
+import { cancelWechatImage, paintWechat, lineImages } from "@/lib/wechat";
 import { saveBlob, useApp } from "@/lib/store";
 import { downloadBlob, cn } from "@/lib/utils";
 import { foldWindow, genPhaseLabel, stripStatus } from "@/lib/engine";
@@ -172,6 +173,7 @@ export function ChatPane({ chat }: { chat: Chat }) {
       </div>
 
       <div className="shrink-0 bg-bg px-3 pb-[calc(env(safe-area-inset-bottom)+10px)] pt-1">
+        <WechatChip chatId={chat.id} />
         <div className="mb-1.5 flex h-6 items-center gap-1.5 px-0.5 text-[13px] leading-none">
           <div className="inline-flex h-[22px] items-center gap-1.5 rounded-md border border-line bg-card px-1.5">
             <button
@@ -427,6 +429,24 @@ function cnToggle(on: boolean) {
   return on ? "px-1 font-medium text-ink" : "px-1 text-muted";
 }
 
+function WechatChip({ chatId }: { chatId: string }) {
+  const on = useApp((s) => s.wechatSessions[chatId]?.minimized === true);
+  if (!on) return null;
+  return (
+    <button
+      type="button"
+      className="mx-auto mb-2 block rounded-full border border-line bg-card px-4 py-1.5 text-[13px] text-ink"
+      onClick={() => {
+        const cur = useApp.getState().wechatSessions[chatId];
+        if (!cur) return;
+        useApp.getState().setWechatSession(chatId, { ...cur, minimized: false });
+      }}
+    >
+      微信聊天中...
+    </button>
+  );
+}
+
 function Bubble({
   chat,
   msg,
@@ -462,7 +482,7 @@ function Bubble({
             className="rounded-[12px] border border-line bg-card px-4 py-3 text-[14px] text-ink"
             onClick={() => useApp.getState().setUI({ wechatView: { chatId: chat.id, msgId: msg.id } })}
           >
-            已保存的微信内容
+            {msg.wechatLog.voided ? "失效的聊天记录" : "已保存的微信内容"}
           </button>
           <div className="mt-1.5 flex justify-end gap-1.5">
             <Mini onClick={() => void branchFrom(chat.id, msg.id)} icon={<GitBranch className="size-3" />} label="开分支" />
@@ -895,9 +915,13 @@ export function CustomPromptModal() {
   const data = useApp((s) => s.ui.customPrompt);
   const setUI = useApp((s) => s.setUI);
   const chat = useApp((s) => (data ? s.chats.find((c) => c.id === data.chatId) : undefined));
+  const wechatLine = useApp((s) =>
+    data?.wechatLineId ? s.wechatSessions[data.chatId]?.lines.find((l) => l.id === data.wechatLineId) : undefined,
+  );
   const msg = chat?.messages.find((m) => m.id === data?.msgId);
-  const live = msg?.images.find((g) => g.id === data?.imgId);
-  const generating = msg?.images.some((g) => g.status !== "done" && g.status !== "error") ?? false;
+  const pool = wechatLine ? lineImages(wechatLine) : msg?.images;
+  const live = pool?.find((g) => g.id === data?.imgId);
+  const generating = pool?.some((g) => g.status !== "done" && g.status !== "error") ?? false;
   const [text, setText] = useState(data?.text ?? "");
   const [charTails, setCharTails] = useState<Record<string, string>>(data?.charTails ?? {});
   const edited = useRef(false);
@@ -962,7 +986,8 @@ export function CustomPromptModal() {
           className="h-12 flex-[1.2] rounded-full bg-primary text-[15px] font-medium text-on-primary disabled:opacity-40"
           onClick={() => {
             if (generating) return;
-            void attachImage(data.chatId, data.msgId, "custom", text, insert ? charTails : undefined);
+            if (data.wechatLineId) void paintWechat(chat, data.wechatLineId, "custom", text, insert ? charTails : undefined);
+            else void attachImage(data.chatId, data.msgId, "custom", text, insert ? charTails : undefined);
             setUI({ customPrompt: null });
           }}
         >
@@ -974,7 +999,8 @@ export function CustomPromptModal() {
           type="button"
           className="mt-3 w-full text-center text-[13px] text-danger"
           onClick={() => {
-            cancelImage(data.chatId, data.msgId);
+            if (data.wechatLineId) cancelWechatImage(data.chatId, data.wechatLineId);
+            else cancelImage(data.chatId, data.msgId);
             setUI({ customPrompt: null });
           }}
         >

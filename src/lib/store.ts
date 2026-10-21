@@ -143,7 +143,14 @@ interface UI {
   saveCardOpen: boolean;
   saveAppearOpen: boolean;
   appearTarget: "mid" | string | null;
-  customPrompt: { chatId: string; msgId: string; imgId: string; text: string; charTails?: Record<string, string> } | null;
+  customPrompt: {
+    chatId: string;
+    msgId: string;
+    imgId: string;
+    text: string;
+    charTails?: Record<string, string>;
+    wechatLineId?: string;
+  } | null;
   confirm: { title: string; body: string; danger?: boolean; onOk: () => void } | null;
   rename: { id: string; kind: "chat" | "folder" | "card" | "remark"; value: string } | null;
   moveOpen: boolean;
@@ -1115,6 +1122,23 @@ function parseStickerIds(raw: unknown): string[] {
   return raw.filter((id): id is string => typeof id === "string" && !!id);
 }
 
+function parseWechatRooms(raw: unknown): Record<string, import("./types").WechatRoom> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const out: Record<string, import("./types").WechatRoom> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (!k || !v || typeof v !== "object") continue;
+    const row = v as Partial<import("./types").WechatRoom>;
+    out[k] = {
+      lines: Array.isArray(row.lines) ? row.lines : [],
+      earlier: typeof row.earlier === "string" ? row.earlier : "",
+      folded: typeof row.folded === "number" && row.folded > 0 ? Math.floor(row.folded) : 0,
+      draft: typeof row.draft === "string" ? row.draft : "",
+      pending: Array.isArray(row.pending) ? row.pending : [],
+    };
+  }
+  return out;
+}
+
 function parseWechatSessions(raw: unknown): Record<string, WechatSession> {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
   const out: Record<string, WechatSession> = {};
@@ -1125,9 +1149,13 @@ function parseWechatSessions(raw: unknown): Record<string, WechatSession> {
       charId: typeof row.charId === "string" ? row.charId : "",
       lines: Array.isArray(row.lines) ? row.lines : [],
       earlier: typeof row.earlier === "string" ? row.earlier : "",
+      folded: typeof row.folded === "number" && row.folded > 0 ? Math.floor(row.folded) : 0,
       draft: typeof row.draft === "string" ? row.draft : "",
       pending: Array.isArray(row.pending) ? row.pending : [],
       armed: row.armed === true,
+      minimized: row.minimized === true,
+      ...(typeof row.activeRoom === "string" ? { activeRoom: row.activeRoom } : {}),
+      ...(row.rooms && typeof row.rooms === "object" ? { rooms: parseWechatRooms(row.rooms) } : {}),
     };
   }
   return out;

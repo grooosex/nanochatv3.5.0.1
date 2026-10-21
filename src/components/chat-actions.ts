@@ -22,6 +22,7 @@ import { grokStream } from "@/lib/grok-client";
 import { sanitizeNaiTags, extractGrokTail, type PresenceUpdate } from "@/lib/nai-tags";
 import { COOLDOWN_MS } from "@/lib/constants";
 import { useApp } from "@/lib/store";
+import { detachWechat } from "@/lib/wechat";
 import { shotAndResidual, previousRoundImagePrompt, latestUserBefore, standingDirectives, formatUserForChat, OPENING_USER, messageShots, stampShots } from "@/lib/user-markup";
 import { presetStyle } from "@/lib/st-preset";
 import { applySnaps, foldCoveredEnd, memoryCaughtUp, memoryFailReason, pushSnap, rewindSnaps } from "@/lib/chat-memory";
@@ -69,7 +70,8 @@ export async function sendUser(id: string, text: string, shots?: UserShot[]) {
   const t = text.trim();
   abortChat(id);
   const msg = shots?.length ? stampShots(makeUserMessage(t), shots) : makeUserMessage(t);
-  patch(id, (c) => ({ ...c, messages: [...c.messages, msg] }));
+  const dropped = detachWechat(id);
+  patch(id, (c) => ({ ...c, messages: [...c.messages, ...(dropped ? [dropped] : []), msg] }));
   await runReply(id, t, false);
 }
 
@@ -665,9 +667,10 @@ export async function editMessage(id: string, msgId: string, text: string, shots
     abortChat(id);
     bumpMemoryEpoch(id);
     const next = stampShots({ ...msg, content: text.trim() }, shots ?? []);
+    const dropped = detachWechat(id);
     patch(id, (ch) => ({
       ...ch,
-      messages: [...ch.messages.slice(0, idx), next],
+      messages: [...ch.messages.slice(0, idx), next, ...(dropped ? [dropped] : [])],
       ...applySnaps(rewindSnaps(ch.memorySnaps, idx)),
     }));
     await runReply(id, text.trim(), false);

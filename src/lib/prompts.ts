@@ -247,6 +247,53 @@ ${imageApplyRules(chat)}
 ${format}`;
 }
 
+export function wechatImageTail(chat: Chat, prevScene = "", scope?: "solo" | "all"): string {
+  const asMulti = scope === "all" || (scope !== "solo" && chat.isMulti);
+  const insert = asMulti && chat.promptMode === "insert";
+  const format =
+    scope === "solo"
+      ? `<<<PROMPT>>> 里只输出英文 tag 一行。禁止 JSON。`
+      : insert
+        ? multiInsertInstruction(chat.characters, "chat")
+        : asMulti
+          ? `<<<PROMPT>>> 里只输出英文 tag 一行，地点写最前。只给在场的人写 char1: ... char2: ...，不在场的整段省略。禁止 JSON，禁止 ENABLED。`
+          : `<<<PROMPT>>> 里只输出英文 tag 一行。禁止 JSON。`;
+  const adult = chat.adultBoost
+    ? `【成人提示词加强】开。对白里的动作、部位、体液必须写成具体真 tag，不要收成 ass focus / naughty face。无关内容仍不要加。`
+    : `【成人提示词加强】关。对白里看得见的仍写具体真 tag，不额外堆没写到的器官特写。完全没有性/血腥的场面不要加 nsfw。`;
+  const who =
+    scope === "all"
+      ? `${IMAGE_MULTI_RULES}\n\n这次名单上的角色全部在场。每个人都要写进画面。禁止把任何人放进 absent，禁止省略任何一个角色的提示词。\n\n`
+      : asMulti
+        ? `${IMAGE_MULTI_RULES}\n\n`
+        : "";
+  return `${IMAGE_SYSTEM}
+
+${IMAGE_SHOT_RULES}
+
+${IMAGE_BG_RULES}
+
+${who}本镜以刚写的 inner 里的地点、动作、表情为重，其次是气泡。主聊天只补背景。
+上一镜地点（看不出人在哪时才用）：
+${prevScene.trim() || "（无）"}
+
+${adult}
+
+${imageLengthRules(chat.imageParams.model, chat.adultBoost)}
+
+${imageApplyRules(chat)}
+
+【输出顺序——必须遵守】
+1. 先只输出微信 JSON。JSON 里禁止 tag，禁止出现 <<<PROMPT>>>。
+2. JSON 结束后另起一行，只输出：
+<<<PROMPT>>>
+（生图内容，见下）
+<<<END>>>
+写到 <<<PROMPT>>> 之后只输出 tag 或规定的 JSON，不要解释。
+
+${format}`;
+}
+
 export const POLISH_SYSTEM = `你在帮用户完善一份虚构角色卡。用中文写（外貌除外）。角色默认已成年，可写成人向。
 
 这是「完善」：把卡补到能直接开演。用户写下的是种子不是终稿。
@@ -363,7 +410,10 @@ export function systemFor(task: string, extra?: string, styleExtra?: string, ima
   }
   if (task === "memory") return MEMORY_SYSTEM;
   if (task === "rewrite") return PROMPT_REWRITE_SYSTEM;
-  if (task === "wechat") return extra?.trim() || "你在用手机微信和用户聊天。只返回 JSON。";
+  if (task === "wechat") {
+    const core = extra?.trim() || "你在用手机微信和用户聊天。只返回 JSON。";
+    return style ? `${core}\n\n${style}` : core;
+  }
   if (task === "personalize") {
     const core = extra
       ? `${POLISH_SYSTEM}\n\n【个性化要求·最高优先】\n${extra}\n没点名的栏仍按完善标准写满并对齐。已填的名字、已填的外貌仍然冻结。`

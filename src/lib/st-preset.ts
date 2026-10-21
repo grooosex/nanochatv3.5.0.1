@@ -242,6 +242,39 @@ export function imagePresetStyle(
   };
 }
 
+export function activeWechatPreset(settings: {
+  stWechatActiveId?: string | null;
+  stPresets?: StPreset[];
+}): StPreset | null {
+  const id = settings.stWechatActiveId;
+  if (!id) return null;
+  return (settings.stPresets ?? []).find((p) => p.id === id) ?? null;
+}
+
+/** 只给写微信回复。没选预设时返回空。预设不能改 JSON 格式。 */
+export function wechatPresetStyle(
+  settings: { stWechatActiveId?: string | null; stPresets?: StPreset[] },
+  chat?: Chat | null,
+  inlineImage = false,
+  group = false,
+): { styleExtra?: string; postHistory?: string } {
+  const preset = activeWechatPreset(settings);
+  if (!preset) return {};
+  const ctx = macroContext(chat);
+  const sys = substituteMacros(preset.systemPrompt, ctx).trim();
+  const post = substituteMacros(preset.postHistory, ctx).trim();
+  const closer = group
+    ? "上面的预设只影响她们怎么说、什么态度，不能改输出形式。最终只能返回一个 JSON，不要 markdown，不要小说，不要状态栏，不要预设自己的消息格式。bubbles 是数组，每项是 {name, text}。inner 和 sticker 按角色名分开。思考不要写进 text 或 inner。" +
+      (inlineImage ? "JSON 结束后另起一行写 <<<PROMPT>>>，里面只许英文 tag，然后 <<<END>>>。" : "")
+    : inlineImage
+      ? "上面的预设只影响她怎么说、什么态度，不能改输出形式。先只输出一个微信 JSON，不要 markdown，不要小说，不要状态栏，不要预设自己的消息格式。思考不要写进 bubbles 或 inner。JSON 结束后另起一行写 <<<PROMPT>>>，里面只许英文 tag，然后 <<<END>>>。"
+      : '上面的预设只影响她怎么说、什么态度，不能改输出形式。最终只能返回一个 JSON，不要 markdown，不要解释，不要小说，不要状态栏，不要预设自己的消息格式：{"bubbles":["一条文字"],"inner":"内心","sticker":0}。思考过程不要写进 bubbles 或 inner。';
+  return {
+    styleExtra: sys || undefined,
+    postHistory: [post, closer].filter(Boolean).join("\n\n"),
+  };
+}
+
 export function samplerPatch(params: StPreset["params"], current: LlmParams): LlmParams {
   return {
     ...current,

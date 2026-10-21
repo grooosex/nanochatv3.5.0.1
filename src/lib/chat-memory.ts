@@ -120,6 +120,7 @@ export function pushSnap(snaps: MemorySnap[] | undefined, snap: MemorySnap): Mem
 export function formatMemoryDialog(messages: ChatMessage[]): string {
   return messages
     .map((m) => {
+      if (m.wechatLog?.voided) return "";
       const text = (m.role === "user" ? m.content : replyContextText(m.content)).trim();
       if (!text) return "";
       return `${m.role === "user" ? "用户" : m.characterName || "角色"}：${text}`;

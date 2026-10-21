@@ -52,6 +52,7 @@ function baseSettings(): Settings {
     stActiveId: null,
     stParamSnapshot: null,
     stImageActiveId: null,
+    stWechatActiveId: null,
     naiKey: "",
     naiBase: DEFAULT_NAI_BASE,
     naiConnected: false,

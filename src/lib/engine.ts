@@ -125,7 +125,7 @@ function userHistoryContent(m: ChatMessage, last: boolean, standing: string[]) {
 function historyMessages(chat: Chat, upto?: number) {
   const msgs = chat.messages.slice(0, upto ?? chat.messages.length);
   const start = Math.max(0, msgs.length - recentWindow());
-  const recent = msgs.slice(start).filter((m) => m.role !== "narrator" || m.content);
+  const recent = msgs.slice(start).filter((m) => !m.wechatLog?.voided && (m.role !== "narrator" || m.content));
   const standing = standingDirectives(chat);
   let lastUser = -1;
   for (let i = recent.length - 1; i >= 0; i--) {
@@ -339,13 +339,18 @@ export async function writeImageTags(
   prevScene?: string,
   signal?: AbortSignal,
   turnUser?: string,
+  cast?: "solo" | "all",
 ) {
+  const view = cast === "solo" ? { ...chat, isMulti: false } : chat;
   const extra = [
     chat.adultBoost
       ? "成人提示词加强：开。这是最高优先级之一。对白里的动作、部位、体液必须写成具体真 tag，不要收成 ass focus / naughty face。无关内容仍不要加。只输出标签，不要解释。"
       : "成人提示词加强：关。对白里看得见的仍写具体真 tag，不要额外堆没写到的器官特写。完全没有性/血腥的场面不要加 nsfw。只输出标签，不要解释。",
     imageLengthRules(chat.imageParams.model, chat.adultBoost),
-    chat.isMulti ? IMAGE_MULTI_RULES : "",
+    cast === "solo" ? "" : chat.isMulti || cast === "all" ? IMAGE_MULTI_RULES : "",
+    cast === "all"
+      ? "这次名单上的角色全部在场。每个人都要写进画面。禁止把任何人放进 absent，禁止省略任何一个角色的提示词。"
+      : "",
     imageApplyRules(chat),
   ]
     .filter(Boolean)
@@ -355,14 +360,14 @@ export async function writeImageTags(
   const payload: Record<string, unknown> = {
     task: "image",
     extraSystem: extra,
-    messages: [{ role: "user", content: imageBrief(chat, { shot: shotText, residual: lastText, prevScene, turnUser }) }],
+    messages: [{ role: "user", content: imageBrief(view, { shot: shotText, residual: lastText, prevScene, turnUser }) }],
     max_tokens: imageWriteMaxTokens(chat.imageParams.model),
     ...imageWriteFields(imageModelId),
     ...imagePresetStyle(useApp.getState().settings, chat),
   };
   if (!dest.split) payload.grokModelId = grokModelId;
   const text = await grokOnce(payload, withImageTimeout(signal));
-  return parseImageTagOutput(replyStoryText(text), chat);
+  return parseImageTagOutput(replyStoryText(text), view);
 }
 
 export { genPhaseLabel, imageFailText, prettyImageError, settleStuckImages } from "./image-status";

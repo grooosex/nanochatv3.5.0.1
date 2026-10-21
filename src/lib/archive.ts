@@ -46,6 +46,7 @@ export async function exportArchive(kind: "full" | "lite") {
       stActiveId: null,
       stParamSnapshot: null,
       stImageActiveId: null,
+      stWechatActiveId: null,
       naiKey: "",
       naiBase: "https://api.idlecloud.cc",
       naiConnected: false,
@@ -165,6 +166,7 @@ export async function importArchive(file: File) {
       stActiveId: dumpS?.stActiveId ?? prevVal?.stActiveId ?? null,
       stParamSnapshot: dumpS?.stParamSnapshot ?? prevVal?.stParamSnapshot ?? null,
       stImageActiveId: dumpS?.stImageActiveId ?? prevVal?.stImageActiveId ?? null,
+      stWechatActiveId: dumpS?.stWechatActiveId ?? prevVal?.stWechatActiveId ?? null,
     };
     await db.kv.put({ key: "settings", value: merged });
     if (currentId !== undefined) await db.kv.put({ key: "currentId", value: currentId });

@@ -491,6 +491,7 @@ function ApiSettingsSheet({ onClose }: { onClose: () => void }) {
 
       <ChatPresetPicker mode="chat" />
       <ChatPresetPicker mode="image" />
+      <ChatPresetPicker mode="wechat" />
 
       <div className="mt-5 mb-2 flex items-center justify-between">
         <div className="text-[14px] font-medium">预设</div>
@@ -588,6 +589,11 @@ function applyImagePreset(preset: StPreset) {
   useApp.getState().toast(`已应用生图预设（${preset.name}）`);
 }
 
+function cancelImagePreset() {
+  useApp.getState().setSettings({ stImageActiveId: null });
+  useApp.getState().toast("已取消生图预设");
+}
+
 function cancelStPreset() {
   const s = useApp.getState().settings;
   useApp.getState().setSettings({
@@ -598,9 +604,14 @@ function cancelStPreset() {
   useApp.getState().toast("已取消预设");
 }
 
-function cancelImagePreset() {
-  useApp.getState().setSettings({ stImageActiveId: null });
-  useApp.getState().toast("已取消生图预设");
+function applyWechatPreset(preset: StPreset) {
+  useApp.getState().setSettings({ stWechatActiveId: preset.id });
+  useApp.getState().toast(`已应用微信预设（${preset.name}）`);
+}
+
+function cancelWechatPreset() {
+  useApp.getState().setSettings({ stWechatActiveId: null });
+  useApp.getState().toast("已取消微信预设");
 }
 
 function deleteStPreset(id: string) {
@@ -608,6 +619,7 @@ function deleteStPreset(id: string) {
   const next = (s.stPresets ?? []).filter((x) => x.id !== id);
   const chatWas = s.stActiveId === id;
   const imageWas = s.stImageActiveId === id;
+  const wechatWas = s.stWechatActiveId === id;
   useApp.getState().setSettings({
     stPresets: next,
     ...(chatWas
@@ -618,15 +630,17 @@ function deleteStPreset(id: string) {
         }
       : {}),
     ...(imageWas ? { stImageActiveId: null } : {}),
+    ...(wechatWas ? { stWechatActiveId: null } : {}),
   });
   if (chatWas) useApp.getState().toast("已取消预设");
   else if (imageWas) useApp.getState().toast("已取消生图预设");
+  else if (wechatWas) useApp.getState().toast("已取消微信预设");
 }
 
-function ChatPresetPicker({ mode }: { mode: "chat" | "image" }) {
+function ChatPresetPicker({ mode }: { mode: "chat" | "image" | "wechat" }) {
   const settings = useApp((s) => s.settings);
   const presets = settings.stPresets ?? [];
-  const activeId = mode === "chat" ? settings.stActiveId : settings.stImageActiveId;
+  const activeId = mode === "chat" ? settings.stActiveId : mode === "image" ? settings.stImageActiveId : settings.stWechatActiveId;
   const active = presets.find((p) => p.id === activeId) ?? null;
   const fileRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
@@ -713,7 +727,7 @@ function ChatPresetPicker({ mode }: { mode: "chat" | "image" }) {
     <div className="mt-5">
       <div className="mb-2 flex items-center gap-2">
         <div className="min-w-0 flex-1 text-[14px] font-medium">
-          {mode === "chat" ? "对话补全预设" : "生图提示词预设"}
+          {mode === "chat" ? "对话补全预设" : mode === "image" ? "生图提示词预设" : "微信补全预设"}
         </div>
         {mode === "chat" ? (
           <>
@@ -747,7 +761,7 @@ function ChatPresetPicker({ mode }: { mode: "chat" | "image" }) {
             <button
               type="button"
               className="text-muted"
-              onClick={mode === "chat" ? cancelStPreset : cancelImagePreset}
+              onClick={mode === "chat" ? cancelStPreset : mode === "image" ? cancelImagePreset : cancelWechatPreset}
             >
               取消
             </button>
@@ -799,7 +813,8 @@ function ChatPresetPicker({ mode }: { mode: "chat" | "image" }) {
                         )}
                         onClick={() => {
                           if (mode === "chat") applyStPreset(p);
-                          else applyImagePreset(p);
+                          else if (mode === "image") applyImagePreset(p);
+                          else applyWechatPreset(p);
                           setOpen(false);
                         }}
                       >

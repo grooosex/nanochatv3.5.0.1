@@ -30,6 +30,7 @@ export const defaultSettings = (): Settings => ({
   stActiveId: null,
   stParamSnapshot: null,
   stImageActiveId: null,
+  stWechatActiveId: null,
   naiKey: "",
   naiBase: DEFAULT_NAI_BASE,
   naiConnected: false,
@@ -109,6 +110,10 @@ export async function loadAll() {
     typeof raw?.stImageActiveId === "string" && stPresets.some((p) => p.id === raw.stImageActiveId)
       ? raw.stImageActiveId
       : null;
+  const stWechatActiveId =
+    typeof raw?.stWechatActiveId === "string" && stPresets.some((p) => p.id === raw.stWechatActiveId)
+      ? raw.stWechatActiveId
+      : null;
   const settings = {
     ...defaultSettings(),
     ...(raw ?? {}),
@@ -121,6 +126,7 @@ export async function loadAll() {
     stActiveId,
     stParamSnapshot: stActiveId && raw?.stParamSnapshot ? mergeLlmParams(raw.stParamSnapshot) : null,
     stImageActiveId,
+    stWechatActiveId,
     chatSource: raw?.chatSource === "api" && raw?.llmConnected ? ("api" as const) : ("grok" as const),
     chatImage: raw?.chatImage !== false,
     imageModelId: typeof raw?.imageModelId === "string" ? raw.imageModelId : null,
