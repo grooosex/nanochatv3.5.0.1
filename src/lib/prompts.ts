@@ -158,6 +158,20 @@ ${roster}
 chars 只写这一镜在场的人，键逐字用名单上的中文名。不在场的放进 absent，不要给键。不必每个人都写。`;
 }
 
+/** 群聊微信这一张：名单上的人全部在场，absent 必须是空的。 */
+export function wechatGroupCastFormat(characters: { name: string }[], kind: "chat" | "brief", insert: boolean): string {
+  if (!insert) {
+    const line = "只输出英文 tag 一行，地点写最前。名单上的每个人都要写成 char1: ... char2: ...，一个人都不能少。禁止 JSON，禁止 ENABLED。";
+    return kind === "chat" ? `<<<PROMPT>>> 里${line}` : line;
+  }
+  const roster = characters.map((c, i) => `${i + 1}. ${c.name.trim() || `角色${i + 1}`}`).join("\n");
+  const head = kind === "chat" ? "<<<PROMPT>>> 里只输出 JSON（不要 markdown）" : "输出 JSON（不要 markdown）";
+  return `${head}：{"base":"这一镜的人数、场景、镜头、光线","chars":{"名单上的中文名":"该人动作表情姿势"},"absent":[]}
+角色名单：
+${roster}
+这次名单上的人全部在场。chars 必须给每一个人写一条，键逐字用名单上的中文名。absent 必须是空数组。禁止把任何人放进 absent，禁止省略任何一个角色的提示词。`;
+}
+
 function isV5Model(model: NaiModelId) {
   return model === "nai-diffusion-5-full" || model === "nai-diffusion-5-curated";
 }
@@ -253,11 +267,13 @@ export function wechatImageTail(chat: Chat, prevScene = "", scope?: "solo" | "al
   const format =
     scope === "solo"
       ? `<<<PROMPT>>> 里只输出英文 tag 一行。禁止 JSON。`
-      : insert
-        ? multiInsertInstruction(chat.characters, "chat")
-        : asMulti
-          ? `<<<PROMPT>>> 里只输出英文 tag 一行，地点写最前。只给在场的人写 char1: ... char2: ...，不在场的整段省略。禁止 JSON，禁止 ENABLED。`
-          : `<<<PROMPT>>> 里只输出英文 tag 一行。禁止 JSON。`;
+      : scope === "all"
+        ? wechatGroupCastFormat(chat.characters, "chat", insert)
+        : insert
+          ? multiInsertInstruction(chat.characters, "chat")
+          : asMulti
+            ? `<<<PROMPT>>> 里只输出英文 tag 一行，地点写最前。只给在场的人写 char1: ... char2: ...，不在场的整段省略。禁止 JSON，禁止 ENABLED。`
+            : `<<<PROMPT>>> 里只输出英文 tag 一行。禁止 JSON。`;
   const adult = chat.adultBoost
     ? `【成人提示词加强】开。对白里的动作、部位、体液必须写成具体真 tag，不要收成 ass focus / naughty face。无关内容仍不要加。`
     : `【成人提示词加强】关。对白里看得见的仍写具体真 tag，不额外堆没写到的器官特写。完全没有性/血腥的场面不要加 nsfw。`;

@@ -131,6 +131,11 @@ export interface UserShot {
   i2i: boolean;
 }
 
+export interface WechatSticker {
+  blobId: string;
+  brief: string;
+}
+
 export interface WechatAttach {
   blobId: string;
   kind: "photo" | "sticker";

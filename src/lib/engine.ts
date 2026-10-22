@@ -1,5 +1,5 @@
 import { grokOnce, grokStream } from "./grok-client";
-import { chatContextBlock, fieldPolishHint, groupFormatHint, IMAGE_BG_RULES, IMAGE_MULTI_RULES, IMAGE_SHOT_RULES, imageApplyRules, imageLengthRules, imageWriteMaxTokens, multiInsertInstruction, roleSnapshot, splitChatPrompt, statusBarFor, voicePolishExtra } from "./prompts";
+import { chatContextBlock, fieldPolishHint, groupFormatHint, IMAGE_BG_RULES, IMAGE_MULTI_RULES, IMAGE_SHOT_RULES, imageApplyRules, imageLengthRules, imageWriteMaxTokens, multiInsertInstruction, roleSnapshot, splitChatPrompt, statusBarFor, voicePolishExtra, wechatGroupCastFormat } from "./prompts";
 import { buildPolishUserContent, extractFieldText, parsePolishJson, stripRoleOutput } from "./role-polish";
 import { formatUserForChat, formatUserImageTurn, messageShots, standingDirectives } from "./user-markup";
 import { stripSpeakerPrefix } from "./rp-text";
@@ -247,19 +247,26 @@ export function nextFoldSlice(chat: Chat) {
 function imageBrief(
   chat: Chat,
   opts: { shot?: string; residual?: string; last?: string; prevScene?: string; turnUser?: string },
+  cast?: "solo" | "all",
 ) {
   const names = chat.characters.map((c) => c.name).filter(Boolean).join("、");
   const insert = chat.isMulti && chat.promptMode === "insert";
-  const format = insert
-    ? multiInsertInstruction(chat.characters, "brief")
-    : chat.isMulti
-      ? "只输出英文 tag 一行，地点写最前。只给在场的人写 char1: ... char2: ...，不在场的整段省略。禁止 JSON，禁止 ENABLED。"
-      : "只输出英文 tag 一行，地点写最前。禁止 JSON。";
+  const format =
+    cast === "all"
+      ? wechatGroupCastFormat(chat.characters, "brief", insert)
+      : insert
+        ? multiInsertInstruction(chat.characters, "brief")
+        : chat.isMulti
+          ? "只输出英文 tag 一行，地点写最前。只给在场的人写 char1: ... char2: ...，不在场的整段省略。禁止 JSON，禁止 ENABLED。"
+          : "只输出英文 tag 一行，地点写最前。禁止 JSON。";
   const shot = (opts.shot || "").trim();
   const residual = (opts.residual || opts.last || "").trim();
-  const turnUser = chat.isMulti
-    ? `这一轮用户（只用来判断谁在场；姿势、动作、衣服仍只认本镜）：\n${(opts.turnUser || "").trim() || "（无）"}\n\n`
-    : "";
+  const turnUser =
+    cast === "all"
+      ? `这一轮用户（不能用来把任何人排除出画面。姿势、动作、衣服仍只认本镜）：\n${(opts.turnUser || "").trim() || "（无）"}\n\n`
+      : chat.isMulti
+        ? `这一轮用户（只用来判断谁在场；姿势、动作、衣服仍只认本镜）：\n${(opts.turnUser || "").trim() || "（无）"}\n\n`
+        : "";
   return `角色：${names || "（未命名）"}
 外貌已由用户写好，不要重复（含发色瞳色体型种族整套衣服）。
 成人提示词加强：${chat.adultBoost ? "开" : "关"}
@@ -292,6 +299,7 @@ ${format}`;
 export function parseImageTagOutput(
   text: string,
   chat: Chat,
+  keepAll = false,
 ): { base: string; chars: Record<string, string>; absent: string[]; presence?: import("./nai-tags").PresenceUpdate } {
   const insert = chat.isMulti && chat.promptMode === "insert";
   const slots = chat.imageParams.characters.length ? chat.imageParams.characters : chat.characters;
@@ -309,12 +317,12 @@ export function parseImageTagOutput(
     }
     const { mapped, leftover } = assignCharTags(rawChars, roster);
     const base = sanitizeNaiTags([String(json.base || ""), leftover].filter(Boolean).join(", "));
-    const absent = resolveAbsentIds(json.absent, roster);
-    const presence = presenceFromTags(Object.keys(mapped), absent);
+    const absent = keepAll ? [] : resolveAbsentIds(json.absent, roster);
+    const presence = keepAll ? undefined : presenceFromTags(Object.keys(mapped), absent);
     if (!insert) {
       const absentSet = new Set(absent);
       const extras = Object.entries(mapped)
-        .filter(([id]) => !absentSet.has(id))
+        .filter(([id]) => keepAll || !absentSet.has(id))
         .map(([, tags]) => tags)
         .filter(Boolean);
       return { base: sanitizeNaiTags([base, ...extras].filter(Boolean).join(", ")), chars: {}, absent, presence };
@@ -322,7 +330,7 @@ export function parseImageTagOutput(
     return { base, chars: mapped, absent, presence };
   }
 
-  const legacy = chat.isMulti ? legacyPresentIds(text, roster) : undefined;
+  const legacy = !keepAll && chat.isMulti ? legacyPresentIds(text, roster) : undefined;
   return {
     base: sanitizeNaiTags(text.replace(/\n/g, ", ")),
     chars: {},
@@ -360,14 +368,14 @@ export async function writeImageTags(
   const payload: Record<string, unknown> = {
     task: "image",
     extraSystem: extra,
-    messages: [{ role: "user", content: imageBrief(view, { shot: shotText, residual: lastText, prevScene, turnUser }) }],
+    messages: [{ role: "user", content: imageBrief(view, { shot: shotText, residual: lastText, prevScene, turnUser }, cast) }],
     max_tokens: imageWriteMaxTokens(chat.imageParams.model),
     ...imageWriteFields(imageModelId),
     ...imagePresetStyle(useApp.getState().settings, chat),
   };
   if (!dest.split) payload.grokModelId = grokModelId;
   const text = await grokOnce(payload, withImageTimeout(signal));
-  return parseImageTagOutput(replyStoryText(text), view);
+  return parseImageTagOutput(replyStoryText(text), view, cast === "all");
 }
 
 export { genPhaseLabel, imageFailText, prettyImageError, settleStuckImages } from "./image-status";

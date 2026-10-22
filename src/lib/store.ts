@@ -26,6 +26,7 @@ import type {
   TabId,
   UserShot,
   WechatSession,
+  WechatSticker,
 } from "./types";
 import { normalizeChatMemory } from "./chat-memory";
 import { uid, sortHistoryNewestFirst } from "./utils";
@@ -113,6 +114,7 @@ function copyRoleBody(dst: Character, src: Character): Character {
     speech: src.speech,
     appearance: src.appearance,
     lookBlobId: src.lookBlobId,
+    wechatAvatarBlobId: src.wechatAvatarBlobId,
     personaVoices: src.personaVoices ?? dst.personaVoices,
     extras: src.extras ?? dst.extras,
   };
@@ -196,7 +198,7 @@ interface State {
   composerDrafts: Record<string, string>;
   composerShots: Record<string, UserShot[]>;
   wechatSessions: Record<string, WechatSession>;
-  wechatStickers: string[];
+  wechatStickers: WechatSticker[];
   hydrate: () => Promise<void>;
   toast: (text: string) => void;
   setUI: (p: Partial<UI>) => void;
@@ -251,7 +253,7 @@ interface State {
   setComposerDraft: (chatId: string, text: string) => void;
   setComposerShot: (chatId: string, shots: UserShot[] | null) => void;
   setWechatSession: (chatId: string, session: WechatSession | null) => void;
-  setWechatStickers: (ids: string[]) => void;
+  setWechatStickers: (items: WechatSticker[]) => void;
 }
 
 const ui0 = (): UI => ({
@@ -364,7 +366,7 @@ export const useApp = create<State>((set, get) => ({
       composerDrafts: parseComposerDrafts(draftsRow?.value),
       composerShots: parseComposerShots(shotsRow?.value),
       wechatSessions: parseWechatSessions(wechatRow?.value),
-      wechatStickers: parseStickerIds(stickerRow?.value),
+      wechatStickers: parseStickers(stickerRow?.value),
     });
   },
 
@@ -1066,9 +1068,9 @@ export const useApp = create<State>((set, get) => ({
     });
   },
 
-  setWechatStickers: (ids) => {
-    set({ wechatStickers: ids });
-    void db.kv.put({ key: "wechatStickers", value: ids });
+  setWechatStickers: (items) => {
+    set({ wechatStickers: items });
+    void db.kv.put({ key: "wechatStickers", value: items });
   },
 }));
 
@@ -1117,9 +1119,20 @@ function dropShots(shots: Record<string, UserShot[]>, ids: Set<string>) {
   return next;
 }
 
-function parseStickerIds(raw: unknown): string[] {
+function parseStickers(raw: unknown): WechatSticker[] {
   if (!Array.isArray(raw)) return [];
-  return raw.filter((id): id is string => typeof id === "string" && !!id);
+  const out: WechatSticker[] = [];
+  for (const item of raw) {
+    if (typeof item === "string" && item) {
+      out.push({ blobId: item, brief: "" });
+      continue;
+    }
+    if (!item || typeof item !== "object") continue;
+    const blobId = (item as { blobId?: unknown }).blobId;
+    const brief = (item as { brief?: unknown }).brief;
+    if (typeof blobId === "string" && blobId) out.push({ blobId, brief: typeof brief === "string" ? brief : "" });
+  }
+  return out;
 }
 
 function parseWechatRooms(raw: unknown): Record<string, import("./types").WechatRoom> {
@@ -1191,12 +1204,13 @@ function blobInUse(s: State, blobId: string, skipFav?: string) {
   if (s.favorites.some((f) => f.params.img2imgBlobId === blobId)) return true;
   if (s.pureParams.img2imgBlobId === blobId) return true;
   if (s.history.some((h) => h.blobId === blobId)) return true;
-  if (s.cards.some((card) => card.characters.some((c) => c.lookBlobId === blobId))) return true;
+  if (s.cards.some((card) => card.characters.some((c) => c.lookBlobId === blobId || c.wechatAvatarBlobId === blobId))) return true;
+  if (s.wechatStickers.some((st) => st.blobId === blobId)) return true;
   for (const c of s.chats) {
     if (c.avatarBlobId === blobId) return true;
     if (c.customAvatarBlobId === blobId) return true;
     if (c.imageParams.img2imgBlobId === blobId) return true;
-    if (c.characters.some((ch) => ch.lookBlobId === blobId)) return true;
+    if (c.characters.some((ch) => ch.lookBlobId === blobId || ch.wechatAvatarBlobId === blobId)) return true;
     for (const m of c.messages) {
       if (m.userImageBlobId === blobId) return true;
       if (m.userImages?.some((s) => s.blobId === blobId)) return true;

@@ -342,6 +342,24 @@ export function RoleEditor({ chat, mode }: { chat: Chat; mode: "create" | "edit"
             onRegen={() => runField("persona", char.id)}
             onPersonal={() => openPersonalize("persona", char.id)}
           />
+          {chat.isMulti ? (
+            <div className="mb-3 px-1">
+              <CustomAvatar
+                blobId={char.wechatAvatarBlobId}
+                label="自定义微信头像。不上传就用主聊天的头像"
+                onId={(id) =>
+                  patch({
+                    characters: chat.characters.map((c) => (c.id === char.id ? { ...c, wechatAvatarBlobId: id } : c)),
+                  })
+                }
+                onClear={() =>
+                  patch({
+                    characters: chat.characters.map((c) => (c.id === char.id ? { ...c, wechatAvatarBlobId: "" } : c)),
+                  })
+                }
+              />
+            </div>
+          ) : null}
           <FieldBlock
             label="说话方式"
             hint="语气、口癖、人称、句子长短。例如：软软的、会把「……」拖长。"
@@ -961,10 +979,12 @@ function CustomAvatar({
   blobId,
   onId,
   onClear,
+  label = "自定义头像。不上传就用第一张生成的图",
 }: {
   blobId?: string;
   onId: (id: string) => void;
   onClear: () => void;
+  label?: string;
 }) {
   const [url, setUrl] = useState<string | null>(null);
   const [crop, setCrop] = useState<string | null>(null);
@@ -1029,7 +1049,7 @@ function CustomAvatar({
           )}
         />
       )}
-      <span className="text-[12px] text-muted">自定义头像。不上传就用第一张生成的图</span>
+      <span className="text-[12px] text-muted">{label}</span>
       {crop ? (
         <AvatarCrop
           src={crop}

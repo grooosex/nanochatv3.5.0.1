@@ -1,15 +1,15 @@
-import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import { useEffect, useRef, useState, type PointerEvent as PE, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
-import { ArrowUp, Check, ChevronLeft, Download, Loader2, Maximize2, Minus, Minimize2, Pencil, Plus, RefreshCw, Smile, Sparkles, Wand2, X } from "lucide-react";
+import { ArrowUp, Check, ChevronLeft, Download, Loader2, Maximize2, Minus, Minimize2, Pencil, Plus, RefreshCw, Smile, Sparkles, Trash2, Wand2, X } from "lucide-react";
 import { getImage, imageUrl } from "@/lib/idb";
 import { genPhaseLabel } from "@/lib/image-status";
 import { modelLabel, samplerLabel } from "@/lib/nai";
 import { extractGrokTail } from "@/lib/nai-tags";
 import { compressRef, isImageFile } from "@/lib/ref-image";
 import { saveBlob, useApp } from "@/lib/store";
-import type { Chat, GenImage, WechatAttach, WechatLine, WechatLog, WechatSession } from "@/lib/types";
-import { emptyWechatSession, ensureMultiSession, lineImages, paintWechat, regenWechat, sendWechat, sessionHasLines, summarizeWechat, WECHAT_GROUP, wechatIsMulti, wechatTurnText, cancelWechatImage } from "@/lib/wechat";
-import { downloadBlob, uid } from "@/lib/utils";
+import type { Chat, GenImage, WechatAttach, WechatLine, WechatLog, WechatSession, WechatSticker } from "@/lib/types";
+import { emptyWechatSession, ensureMultiSession, describeSticker, lineImages, paintWechat, queueStickerBrief, regenWechat, sendWechat, sessionHasLines, summarizeWechat, WECHAT_GROUP, wechatIsMulti, wechatTurnText, cancelWechatImage } from "@/lib/wechat";
+import { autoScrollNearEdge, downloadBlob, indexFromY, moveId, nearestScroller, uid } from "@/lib/utils";
 import { ImagePick } from "./ImagePick";
 import { ChatAvatar, useCooldown } from "./ui-kit";
 
@@ -75,13 +75,14 @@ function WechatLive({ chat, session }: { chat: Chat; session: WechatSession }) {
   const name = multi ? (active === WECHAT_GROUP ? "群聊" : activeChar?.name.trim() || "她") : char?.name.trim() || chat.name || "她";
   const [full, setFull] = useState(false);
   const [picked, setPicked] = useState<string | null>(null);
+  const [book, setBook] = useState(false);
   const [editFrom, setEditFrom] = useState<string | null>(null);
 
   useEffect(() => {
     const el = scroller.current;
     if (!el) return;
     el.scrollTop = el.scrollHeight;
-  }, [lines.length, phase, pending.length]);
+  }, [lines.length, phase, pending.length, active]);
 
   const patch = (p: Partial<WechatSession>) => {
     const cur = useApp.getState().wechatSessions[chat.id];
@@ -115,10 +116,10 @@ function WechatLive({ chat, session }: { chat: Chat; session: WechatSession }) {
     if (!draft.trim() && !pending.length) return;
     setPhase("type");
     setEmoji(false);
-    const from = editFrom;
+    const from = editFrom && lines.some((l) => l.id === editFrom) ? editFrom : undefined;
     setEditFrom(null);
     setPicked(null);
-    void sendWechat(chat, () => setPhase("idle"), from ?? undefined);
+    void sendWechat(chat, () => setPhase("idle"), from);
   };
 
   const close = () => {
@@ -365,24 +366,35 @@ function WechatLive({ chat, session }: { chat: Chat; session: WechatSession }) {
               setTab={setTab}
               stickers={stickers}
               onEmoji={(ch) => {
-                patch({ draft: session.draft + ch });
+                patchView({ draft: draft + ch });
                 inputRef.current?.focus();
               }}
               onSticker={(blobId) => addPending([{ blobId, kind: "sticker" }])}
               onDeleteSticker={(blobId) => {
-                useApp.getState().setWechatStickers(stickers.filter((id) => id !== blobId));
+                useApp.getState().setWechatStickers(useApp.getState().wechatStickers.filter((s) => s.blobId !== blobId));
               }}
-              onAddSticker={(blobId) => useApp.getState().setWechatStickers([...stickers, blobId])}
+              onAddSticker={(blobId) => {
+                useApp.getState().setWechatStickers([...useApp.getState().wechatStickers, { blobId, brief: "" }]);
+                queueStickerBrief(blobId, chat.grokModelId);
+              }}
+              onOpenBook={() => setBook(true)}
             />
           ) : null}
         </>
       }
     >
+      {book
+        ? createPortal(
+            <StickerBook grokModelId={chat.grokModelId} onClose={() => setBook(false)} />,
+            document.body,
+          )
+        : null}
       <Thread
         chat={chat}
         name={name}
         lines={lines}
         names={multi && active === WECHAT_GROUP}
+        speakerId={multi && active !== WECHAT_GROUP ? active : undefined}
         openInner={openInner}
         toggleInner={(id) => setOpenInner((m) => ({ ...m, [id]: !m[id] }))}
         picked={picked}
@@ -393,7 +405,7 @@ function WechatLive({ chat, session }: { chat: Chat; session: WechatSession }) {
           void regenWechat(chat, id, () => setPhase("idle"));
         }}
         onEdit={(line) => {
-          patch({ draft: line.text, pending: line.attachments });
+          patchView({ draft: line.text, pending: line.attachments });
           setEditFrom(line.id);
           setPicked(null);
         }}
@@ -406,16 +418,54 @@ function WechatLive({ chat, session }: { chat: Chat; session: WechatSession }) {
 function WechatRead({ chat, log, onClose }: { chat: Chat; log: WechatLog; onClose: () => void }) {
   const [openInner, setOpenInner] = useState<Record<string, boolean>>({});
   const [full, setFull] = useState(false);
+  const rooms = log.rooms;
+  const tabs = rooms ? readRoomTabs(chat, log) : [];
+  const [room, setRoom] = useState(() => initialRoom(chat, log));
+  const lines = rooms ? rooms[room]?.lines ?? [] : log.lines;
+  const group = Boolean(rooms && room === WECHAT_GROUP);
+  const title = !rooms
+    ? log.charName || "微信"
+    : group
+      ? "群聊"
+      : chat.characters.find((c) => c.id === room)?.name.trim() || log.roomNames?.[room] || "微信";
   return (
-    <Shell title={log.charName || "微信"} onClose={onClose} full={full} onFull={() => setFull((v) => !v)}>
-      <Thread
-        chat={chat}
-        name={log.charName}
-        lines={log.lines}
-        openInner={openInner}
-        toggleInner={(id) => setOpenInner((m) => ({ ...m, [id]: !m[id] }))}
-        readOnly
-      />
+    <Shell
+      title={title}
+      onClose={onClose}
+      full={full}
+      onFull={() => setFull((v) => !v)}
+      footer={
+        tabs.length ? (
+          <div className="flex gap-1.5 overflow-x-auto">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                className={`shrink-0 rounded-full border px-2 py-0.5 text-[12px] ${tab.id === room ? "border-red-500 text-red-500" : "border-neutral-300 text-neutral-500"}`}
+                onClick={() => setRoom(tab.id)}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        ) : undefined
+      }
+    >
+      {lines.length ? (
+        <Thread
+          chat={chat}
+          name={title}
+          lines={lines}
+          names={group}
+          speakerId={rooms && !group ? room : undefined}
+          roomNames={log.roomNames}
+          openInner={openInner}
+          toggleInner={(id) => setOpenInner((m) => ({ ...m, [id]: !m[id] }))}
+          readOnly
+        />
+      ) : rooms ? (
+        <div className="py-8 text-center text-[13px] text-neutral-400">这里还没有聊天</div>
+      ) : null}
       {log.summary.trim() ? (
         <div className="mt-4 rounded-lg bg-white px-3 py-2 text-[13px] leading-relaxed text-black">
           <div className="mb-1 text-[12px] text-neutral-400">总结</div>
@@ -426,6 +476,33 @@ function WechatRead({ chat, log, onClose }: { chat: Chat; log: WechatLog; onClos
       )}
     </Shell>
   );
+}
+
+function initialRoom(chat: Chat, log: WechatLog) {
+  const rooms = log.rooms;
+  if (!rooms) return "";
+  if (log.activeRoom && rooms[log.activeRoom]) return log.activeRoom;
+  const first = chat.characters.find((c) => rooms[c.id]);
+  if (first) return first.id;
+  return Object.keys(rooms)[0] || "";
+}
+
+function readRoomTabs(chat: Chat, log: WechatLog) {
+  const rooms = log.rooms;
+  if (!rooms) return [];
+  const tabs: { id: string; label: string }[] = [];
+  const seen = new Set<string>();
+  for (const c of chat.characters) {
+    if (!rooms[c.id]) continue;
+    seen.add(c.id);
+    tabs.push({ id: c.id, label: c.name.trim() || log.roomNames?.[c.id] || "角色" });
+  }
+  for (const id of Object.keys(rooms)) {
+    if (id === WECHAT_GROUP || seen.has(id)) continue;
+    tabs.push({ id, label: log.roomNames?.[id] || "角色" });
+  }
+  if (rooms[WECHAT_GROUP]) tabs.push({ id: WECHAT_GROUP, label: "群聊" });
+  return tabs;
 }
 
 function Shell({
@@ -482,6 +559,9 @@ function Thread({
   chat,
   name,
   lines,
+  names,
+  speakerId,
+  roomNames,
   openInner,
   toggleInner,
   picked,
@@ -493,6 +573,10 @@ function Thread({
   chat: Chat;
   name: string;
   lines: WechatLine[];
+  names?: boolean;
+  /** 私聊房间的角色。群聊和单人不用。 */
+  speakerId?: string;
+  roomNames?: Record<string, string>;
   openInner: Record<string, boolean>;
   toggleInner: (id: string) => void;
   picked?: string | null;
@@ -523,29 +607,57 @@ function Thread({
           </div>
         ) : (
           <div key={line.id} className="flex items-start gap-2">
-            <ChatAvatar chat={chat} name={name} size={32} />
-            <div className="flex min-w-0 flex-1 flex-col items-start gap-1">
-              {line.text.trim() ? <HerBubble text={line.text} /> : null}
-              {line.attachments.map((a, i) => (
-                <Shot key={`${a.blobId}-${i}`} blobId={a.blobId} />
-              ))}
-              {lineImages(line).length ? <WechatShot chat={chat} lineId={line.id} images={lineImages(line)} readOnly={readOnly} /> : null}
-              {line.inner ? (
-                <button type="button" className="text-[12px] text-neutral-500" onClick={() => toggleInner(line.id)}>
-                  {openInner[line.id] ? "收起内心" : "内心"}
-                </button>
-              ) : null}
-              {line.inner && openInner[line.id] ? (
-                <div className="max-w-[85%] whitespace-pre-wrap rounded-md bg-white/80 px-2 py-1 text-[12px] leading-relaxed text-neutral-700">
-                  {line.inner}
+            {names && !line.speakerId ? (
+              <div className="w-8 shrink-0" />
+            ) : (
+              <ChatAvatar
+                chat={faceOf(chat, line.speakerId || speakerId)}
+                name={speakerLabel(chat, line.speakerId || speakerId, name, roomNames)}
+                size={32}
+              />
+            )}
+            <div className="flex min-w-0 flex-1 flex-col items-start">
+              {names && line.speakerId ? (
+                <div className="mb-1 max-w-[75%] text-[12px] leading-4 text-[#888]">
+                  {speakerLabel(chat, line.speakerId, name, roomNames)}
                 </div>
               ) : null}
+              <div className="flex flex-col items-start gap-1">
+                {line.text.trim() ? <HerBubble text={line.text} /> : null}
+                {line.attachments.map((a, i) => (
+                  <Shot key={`${a.blobId}-${i}`} blobId={a.blobId} />
+                ))}
+                {lineImages(line).length ? <WechatShot chat={chat} lineId={line.id} images={lineImages(line)} readOnly={readOnly} /> : null}
+                {line.inner ? (
+                  <button type="button" className="text-[12px] text-neutral-500" onClick={() => toggleInner(line.id)}>
+                    {openInner[line.id] ? "收起内心" : "内心"}
+                  </button>
+                ) : null}
+                {line.inner && openInner[line.id] ? (
+                  <div className="max-w-[85%] whitespace-pre-wrap rounded-md bg-white/80 px-2 py-1 text-[12px] leading-relaxed text-neutral-700">
+                    {line.inner}
+                  </div>
+                ) : null}
+              </div>
             </div>
           </div>
         ),
       )}
     </div>
   );
+}
+
+function speakerLabel(chat: Chat, speakerId: string | undefined, fallback: string, roomNames?: Record<string, string>) {
+  if (!speakerId) return fallback;
+  const named = chat.characters.find((c) => c.id === speakerId)?.name.trim();
+  return named || roomNames?.[speakerId] || fallback || "她";
+}
+
+function faceOf(chat: Chat, speakerId?: string): Chat {
+  if (!speakerId) return chat;
+  const blob = chat.characters.find((c) => c.id === speakerId)?.wechatAvatarBlobId;
+  if (!blob) return chat;
+  return { ...chat, customAvatarBlobId: blob };
 }
 
 function UserBubble({ text }: { text: string }) {
@@ -800,14 +912,16 @@ function EmojiPanel({
   onSticker,
   onDeleteSticker,
   onAddSticker,
+  onOpenBook,
 }: {
   tab: "emoji" | "heart";
   setTab: (t: "emoji" | "heart") => void;
-  stickers: string[];
+  stickers: WechatSticker[];
   onEmoji: (ch: string) => void;
   onSticker: (blobId: string) => void;
   onDeleteSticker: (blobId: string) => void;
   onAddSticker: (blobId: string) => void;
+  onOpenBook: () => void;
 }) {
   return (
     <div className="mt-2 border-t border-black/5 pt-2">
@@ -839,9 +953,12 @@ function EmojiPanel({
               </button>
             )}
           />
-          {stickers.map((id) => (
-            <StickerTile key={id} blobId={id} onPick={() => onSticker(id)} onDelete={() => onDeleteSticker(id)} />
+          {stickers.map((s) => (
+            <StickerTile key={s.blobId} blobId={s.blobId} onPick={() => onSticker(s.blobId)} onDelete={() => onDeleteSticker(s.blobId)} />
           ))}
+          <button type="button" className="grid aspect-square place-items-center rounded-md border border-dashed border-neutral-300 text-neutral-500" onClick={onOpenBook} aria-label="表情包设置">
+            <Pencil className="size-5" />
+          </button>
         </div>
       )}
     </div>
@@ -884,6 +1001,331 @@ function StickerTile({ blobId, onPick, onDelete }: { blobId: string; onPick: () 
     >
       {url ? <img src={url} alt="" className="size-full object-contain" /> : null}
     </button>
+  );
+}
+
+function sameStickers(a: WechatSticker[], b: WechatSticker[]) {
+  if (a.length !== b.length) return false;
+  return a.every((s, i) => s.blobId === b[i]?.blobId && s.brief === b[i]?.brief);
+}
+
+function GripBars() {
+  return (
+    <span className="flex flex-col items-center justify-center gap-[3px]" aria-hidden>
+      <span className="h-[2px] w-4 rounded-full bg-current" />
+      <span className="h-[2px] w-4 rounded-full bg-current" />
+      <span className="h-[2px] w-4 rounded-full bg-current" />
+    </span>
+  );
+}
+
+function StickerBook({ grokModelId, onClose }: { grokModelId?: string; onClose: () => void }) {
+  const saved = useApp((s) => s.wechatStickers);
+  const [rows, setRows] = useState<WechatSticker[]>(() => saved.map((s) => ({ ...s })));
+  const [sortMode, setSortMode] = useState(false);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [leave, setLeave] = useState(false);
+  const [dropId, setDropId] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const rowsRef = useRef(rows);
+  const dragRef = useRef<string | null>(null);
+  const lastY = useRef(0);
+  const rafRef = useRef(0);
+  const touched = useRef(new Set<string>());
+  const hold = useRef(0);
+  rowsRef.current = rows;
+
+  useEffect(() => {
+    setRows((cur) => {
+      let changed = false;
+      const next = cur.map((row) => {
+        if (touched.current.has(row.blobId)) return row;
+        const live = saved.find((s) => s.blobId === row.blobId);
+        if (!live || live.brief === row.brief) return row;
+        changed = true;
+        return { ...row, brief: live.brief };
+      });
+      return changed ? next : cur;
+    });
+  }, [saved]);
+
+  useEffect(() => {
+    const applyY = (y: number) => {
+      const id = dragRef.current;
+      if (!id) return;
+      const nodes = listRef.current?.querySelectorAll<HTMLElement>("[data-sticker-id]");
+      if (!nodes?.length) return;
+      const order = rowsRef.current.map((s) => s.blobId);
+      const nextIds = moveId(order, id, indexFromY(nodes, y));
+      if (nextIds.join("\0") === order.join("\0")) return;
+      const byId = new Map(rowsRef.current.map((s) => [s.blobId, s]));
+      const next = nextIds.map((blobId) => byId.get(blobId)).filter((s): s is WechatSticker => !!s);
+      rowsRef.current = next;
+      setRows(next);
+    };
+    const tick = () => {
+      rafRef.current = 0;
+      if (!dragRef.current) return;
+      const scroller = nearestScroller(listRef.current);
+      const dy = scroller ? autoScrollNearEdge(scroller, lastY.current) : 0;
+      applyY(lastY.current);
+      if (dy) rafRef.current = requestAnimationFrame(tick);
+    };
+    const onMove = (e: PointerEvent) => {
+      if (!dragRef.current) return;
+      e.preventDefault();
+      lastY.current = e.clientY;
+      const scroller = nearestScroller(listRef.current);
+      const dy = scroller ? autoScrollNearEdge(scroller, e.clientY) : 0;
+      applyY(e.clientY);
+      if (dy && !rafRef.current) rafRef.current = requestAnimationFrame(tick);
+    };
+    const onUp = () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = 0;
+      const scroller = nearestScroller(listRef.current);
+      if (scroller) scroller.style.touchAction = "";
+      if (!dragRef.current) return;
+      dragRef.current = null;
+      setDragId(null);
+    };
+    window.addEventListener("pointermove", onMove, { passive: false });
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, []);
+
+  const save = () => {
+    useApp.getState().setWechatStickers(rowsRef.current.map((s) => ({ ...s })));
+    onClose();
+  };
+
+  const requestClose = () => {
+    if (!sameStickers(rowsRef.current, useApp.getState().wechatStickers)) setLeave(true);
+    else onClose();
+  };
+
+  const regen = (blobId: string) => {
+    if (busyId) return;
+    setBusyId(blobId);
+    touched.current.add(blobId);
+    void describeSticker(blobId, grokModelId)
+      .then((brief) => {
+        if (!brief) return;
+        setRows((cur) => cur.map((s) => (s.blobId === blobId ? { ...s, brief } : s)));
+      })
+      .catch((e: unknown) => {
+        useApp.getState().toast(e instanceof Error ? e.message : "简述没写成");
+      })
+      .finally(() => setBusyId((id) => (id === blobId ? null : id)));
+  };
+
+  const onGripDown = (e: PE<HTMLButtonElement>, id: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragRef.current = id;
+    setDragId(id);
+    lastY.current = e.clientY;
+    const scroller = nearestScroller(listRef.current);
+    if (scroller) scroller.style.touchAction = "none";
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      /* */
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[90] flex items-start justify-center bg-black/40 px-5 pt-[12vh]">
+      <button type="button" className="absolute inset-0" aria-label="关闭" onClick={requestClose} />
+      <div className="relative flex max-h-[calc(100dvh-12vh-24px)] w-full max-w-sm flex-col overflow-hidden rounded-[24px] bg-white text-black shadow-2xl">
+        <div className="flex items-center justify-between px-5 pt-5 pb-3">
+          <h2 className="text-[18px] font-semibold">表情包设置</h2>
+          <div className="flex items-center gap-2">
+            <button type="button" className="rounded-md border border-neutral-300 px-3 py-1 text-[14px]" onClick={save}>
+              保存
+            </button>
+            <button type="button" className="grid size-9 place-items-center" aria-label="关闭" onClick={requestClose}>
+              <X className="size-5" />
+            </button>
+          </div>
+        </div>
+        <div ref={listRef} className="min-h-0 flex-1 overflow-y-auto px-5 pb-5">
+          {rows.length === 0 ? <p className="py-6 text-center text-[14px] text-neutral-400">还没有表情包</p> : null}
+          <div className="flex flex-col gap-4">
+            {rows.map((row) => (
+              <StickerBriefRow
+                key={row.blobId}
+                row={row}
+                sortMode={sortMode}
+                dragging={dragId === row.blobId}
+                busy={busyId === row.blobId}
+                onChange={(brief) => {
+                  touched.current.add(row.blobId);
+                  setRows((cur) => cur.map((s) => (s.blobId === row.blobId ? { ...s, brief } : s)));
+                }}
+                onRegen={() => regen(row.blobId)}
+                onDelete={() => setDropId(row.blobId)}
+                onHold={() => setSortMode(true)}
+                onGripDown={(e) => onGripDown(e, row.blobId)}
+                holdRef={hold}
+              />
+            ))}
+          </div>
+        </div>
+        {leave ? (
+          <Ask
+            text="是否保存修改？"
+            no="否"
+            yes="是"
+            onNo={onClose}
+            onYes={save}
+          />
+        ) : null}
+        {dropId ? (
+          <Ask
+            text="是否删除这张表情包？"
+            no="否"
+            yes="是"
+            danger
+            onNo={() => setDropId(null)}
+            onYes={() => {
+              touched.current.add(dropId);
+              setRows((cur) => cur.filter((s) => s.blobId !== dropId));
+              setDropId(null);
+            }}
+          />
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function Ask({
+  text,
+  no,
+  yes,
+  danger,
+  onNo,
+  onYes,
+}: {
+  text: string;
+  no: string;
+  yes: string;
+  danger?: boolean;
+  onNo: () => void;
+  onYes: () => void;
+}) {
+  return (
+    <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/40 px-8">
+      <div className="w-full rounded-2xl bg-white p-4">
+        <p className="text-[15px]">{text}</p>
+        <div className="mt-4 flex justify-end gap-4">
+          <button type="button" className="text-[14px] text-neutral-500" onClick={onNo}>
+            {no}
+          </button>
+          <button type="button" className={danger ? "text-[14px] font-medium text-red-500" : "text-[14px] font-medium"} onClick={onYes}>
+            {yes}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StickerBriefRow({
+  row,
+  sortMode,
+  dragging,
+  busy,
+  onChange,
+  onRegen,
+  onDelete,
+  onHold,
+  onGripDown,
+  holdRef,
+}: {
+  row: WechatSticker;
+  sortMode: boolean;
+  dragging: boolean;
+  busy: boolean;
+  onChange: (brief: string) => void;
+  onRegen: () => void;
+  onDelete: () => void;
+  onHold: () => void;
+  onGripDown: (e: PE<HTMLButtonElement>) => void;
+  holdRef: RefObject<number>;
+}) {
+  const [url, setUrl] = useState<string | null>(null);
+  const start = useRef({ x: 0, y: 0 });
+  useEffect(() => {
+    let dead = false;
+    void imageUrl(row.blobId).then((u) => {
+      if (!dead) setUrl(u);
+    });
+    return () => {
+      dead = true;
+    };
+  }, [row.blobId]);
+
+  const clearHold = () => window.clearTimeout(holdRef.current);
+
+  return (
+    <div data-sticker-id={row.blobId} className={`flex items-start gap-3 ${dragging ? "opacity-60" : ""}`}>
+      <button
+        type="button"
+        className="size-16 shrink-0 overflow-hidden rounded-md bg-neutral-100 select-none hold-none"
+        aria-label="长按排序"
+        onContextMenu={(e) => e.preventDefault()}
+        onPointerDown={(e) => {
+          if (sortMode) return;
+          start.current = { x: e.clientX, y: e.clientY };
+          clearHold();
+          holdRef.current = window.setTimeout(onHold, 420);
+        }}
+        onPointerMove={(e) => {
+          if (Math.abs(e.clientX - start.current.x) + Math.abs(e.clientY - start.current.y) > 12) clearHold();
+        }}
+        onPointerUp={clearHold}
+        onPointerCancel={clearHold}
+      >
+        {url ? <img src={url} alt="" draggable={false} className="size-full object-contain" /> : null}
+      </button>
+      <div className="relative min-w-0 flex-1 rounded-xl border border-neutral-200">
+        <div className="absolute top-1 right-1 z-10 flex">
+          <button type="button" className="grid size-7 place-items-center text-neutral-500 disabled:opacity-40" aria-label="重新生成" disabled={busy} onClick={onRegen}>
+            {busy ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+          </button>
+          <button type="button" className="grid size-7 place-items-center text-neutral-500" aria-label="删除" onClick={onDelete}>
+            <Trash2 className="size-4" />
+          </button>
+        </div>
+        <textarea
+          value={row.brief}
+          rows={3}
+          placeholder="还没有简述"
+          className="w-full resize-none bg-transparent px-2 pt-8 pb-2 text-[14px] leading-snug outline-none"
+          onChange={(e) => onChange(e.target.value)}
+        />
+      </div>
+      {sortMode ? (
+        <button
+          type="button"
+          className="mt-3 grid size-9 shrink-0 place-items-center text-neutral-500"
+          aria-label="拖动排序"
+          style={{ touchAction: "none" }}
+          onPointerDown={onGripDown}
+        >
+          <GripBars />
+        </button>
+      ) : null}
+    </div>
   );
 }
 

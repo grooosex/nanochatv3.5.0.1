@@ -8,7 +8,7 @@ import { resolveImageWrite } from "./image-ai.ts";
 import { splitChatPrompt, wechatImageTail } from "./prompts.ts";
 import { useApp } from "./store.ts";
 import { wechatPresetStyle } from "./st-preset.ts";
-import type { Chat, ChatMessage, Character, GenImage, ImageGenSource, WechatAttach, WechatLine, WechatRoom, WechatSession } from "./types.ts";
+import type { Chat, ChatMessage, Character, GenImage, ImageGenSource, WechatAttach, WechatLine, WechatRoom, WechatSession, WechatSticker } from "./types.ts";
 import { formatUserForChat, formatUserForImage, parseUserMarkup, standingDirectives } from "./user-markup.ts";
 import { uid } from "./utils.ts";
 
@@ -30,7 +30,7 @@ inner 是此时此刻屏幕对面的她：动作、表情、心里话，大约�
 只返回一个 JSON，不要 markdown，不要解释：
 {"bubbles":["一条文字"],"inner":"内心","sticker":0}`;
 
-const FOLD_SYSTEM = `把下面更早的微信压成一份简短记录，给后面的微信接着用。保留说定的事、人在哪、关系、现在停在哪。用户发过的照片或表情包，用一句话留下画面里是什么。她发过的图，留下提示词里的地点和动作。不要整段抄内心，不要写成小说。只输出正文。`;
+const FOLD_SYSTEM = `把下面更早的微信压成一份简短记录，给后面的微信接着用。保留说定的事、人在哪、关系、现在停在哪。用户发过的照片，用一句话留下画面里是什么。表情包如果记录里已经有简述，留下简述，不要另猜。她发过的图，留下提示词里的地点和动作。不要整段抄内心，不要写成小说。只输出正文。`;
 
 const SUMMARY_SYSTEM = `你在给一段手机微信写总结，给主聊天的正文接着用。
 你可以看内心，用来理解她当时的态度，但写出来的总结不要抄内心，不要写她没说出口的心理和只有你看得到的小动作。
@@ -231,6 +231,79 @@ function herPrompt(line: WechatLine) {
   return done.at(-1)?.prompt.trim() || "";
 }
 
+const STICKER_BRIEF_SYSTEM = `这是一张微信表情包。用一两句中文写它。第一句写画面里有什么，如果图片上有字，就把图片上的字写上。第二句写发它通常是什么意思。这不是正在发生的事，不要写成故事，不要提到某一次聊天。总共不超过 60 个字。只输出这段简述。`;
+
+const STICKER_PACK = 30;
+
+function packOf(stickers: WechatSticker[]) {
+  return stickers.slice(-STICKER_PACK);
+}
+
+function stickerChoices(pack: WechatSticker[]) {
+  if (!pack.length) return "这次没有可用的表情包。sticker 必须是 0。";
+  const lines = pack.map((s, i) => `${i + 1}. ${s.brief.trim() || "还没有简述。"}`);
+  return `下面是你可以发的表情包，按编号。只根据简述选，不合适就填 0。不要把简述里的画面当成正在发生的事，也不要当成用户刚发来的。还没有简述的尽量别选。\n${lines.join("\n")}`;
+}
+
+function cleanBrief(raw: string) {
+  let t = raw.trim().replace(/^```[\w]*\n?/, "").replace(/```$/, "").trim();
+  t = t.replace(/^简述[:：]\s*/, "").replace(/\s+/g, " ").trim();
+  return t.length > 80 ? t.slice(0, 80) : t;
+}
+
+export async function describeSticker(blobId: string, grokModelId?: string) {
+  const url = await blobDataUrl(blobId);
+  if (!url) throw new Error("这张图已经不在了");
+  const text = await grokOnce({
+    task: "wechat",
+    extraSystem: STICKER_BRIEF_SYSTEM,
+    grokModelId,
+    max_tokens: 200,
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "看这张表情包，按要求写简述。" },
+          { type: "image_url", image_url: { url } },
+        ],
+      },
+    ],
+  });
+  return cleanBrief(text);
+}
+
+let briefChain: Promise<unknown> = Promise.resolve();
+
+export function enqueueStickerBrief<T>(fn: () => Promise<T>): Promise<T> {
+  const run = briefChain.then(fn, fn);
+  briefChain = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
+}
+
+export function queueStickerBrief(blobId: string, grokModelId?: string) {
+  void enqueueStickerBrief(async () => {
+    const row = useApp.getState().wechatStickers.find((s) => s.blobId === blobId);
+    if (!row || row.brief.trim()) return;
+    try {
+      const brief = await describeSticker(blobId, grokModelId);
+      if (!brief) return;
+      const now = useApp.getState().wechatStickers;
+      const hit = now.find((s) => s.blobId === blobId);
+      if (!hit || hit.brief.trim()) return;
+      useApp.getState().setWechatStickers(now.map((s) => (s.blobId === blobId ? { ...s, brief } : s)));
+    } catch (e) {
+      useApp.getState().toast(e instanceof Error ? e.message : "简述没写成");
+    }
+  });
+}
+
+function stickerNote(blobId: string) {
+  return useApp.getState().wechatStickers.find((s) => s.blobId === blobId)?.brief.trim() || "";
+}
+
 function lineText(line: WechatLine, withInner: boolean, names?: Record<string, string>) {
   const who = line.role === "user" ? "用户" : (line.speakerId && names?.[line.speakerId]) || "她";
   const bits: string[] = [];
@@ -239,13 +312,15 @@ function lineText(line: WechatLine, withInner: boolean, names?: Record<string, s
     bits.push(formatted.startsWith("【") ? formatted : `用户：${line.text.trim()}`);
   } else if (line.text.trim()) bits.push(`${who}：${line.text.trim()}`);
   const photos = line.attachments.filter((a) => a.kind === "photo").length;
-  const sticks = line.attachments.filter((a) => a.kind === "sticker").length;
   if (photos) bits.push(photos > 1 ? `${who}发过 ${photos} 张照片` : `${who}发过一张照片`);
-  if (sticks) bits.push(`${who}发过一张表情包`);
+  for (const sticker of line.attachments.filter((a) => a.kind === "sticker")) {
+    const brief = stickerNote(sticker.blobId);
+    bits.push(brief ? `${who}发过一张表情包：${brief}` : `${who}发过一张表情包`);
+  }
   const prompt = herPrompt(line);
-  if (prompt) bits.push(`她发过一张图，提示词：${prompt.slice(0, 500)}`);
-  else if (line.gen?.status === "done" || lineImages(line).some((g) => g.status === "done")) bits.push("她发过一张图");
-  if (withInner && line.inner) bits.push(`她的内心（没发出去，不许写进气泡）：${line.inner}`);
+  if (prompt) bits.push(`${who}发过一张图，提示词：${prompt.slice(0, 500)}`);
+  else if (line.gen?.status === "done" || lineImages(line).some((g) => g.status === "done")) bits.push(`${who}发过一张图`);
+  if (withInner && line.inner) bits.push(`${who}的内心（没发出去，不许写进气泡）：${line.inner}`);
   return bits.join("\n");
 }
 
@@ -274,7 +349,7 @@ async function pushImage(parts: Part[], blobId: string, caption: string) {
   parts.push({ type: "image_url", image_url: { url } });
 }
 
-async function replyMessages(chat: Chat, session: WechatSession, stickers: string[], turn: WechatLine) {
+async function replyMessages(chat: Chat, session: WechatSession, stickers: WechatSticker[], turn: WechatLine) {
   const standing = standingDirectives(chat);
   const head = [
     personaPack(chat, session.charId),
@@ -307,26 +382,11 @@ async function replyMessages(chat: Chat, session: WechatSession, stickers: strin
       older.push(...line.attachments);
     }
   }
-  const keep = older.slice(-4);
+  const keep = older.filter((item) => item.kind === "photo").slice(-4);
   for (const item of keep) {
-    await pushImage(
-      parts,
-      item.blobId,
-      item.kind === "sticker"
-        ? "下面这张是前面微信里发过的表情包，不是这一拍新发的。只取它的意思。"
-        : "下面这张是前面微信里发过的照片，不是这一拍新发的，也不是你眼前的实景。",
-    );
+    await pushImage(parts, item.blobId, "下面这张是前面微信里发过的照片，不是这一拍新发的，也不是你眼前的实景。");
   }
-  const pack = stickers.slice(-8);
-  if (pack.length) {
-    parts.push({
-      type: "text",
-      text: "下面是你可以发的表情包，按编号。不合适就 sticker 填 0。不要把它们当成用户发来的。",
-    });
-    for (let i = 0; i < pack.length; i++) await pushImage(parts, pack[i], `表情包 ${i + 1}`);
-  } else {
-    parts.push({ type: "text", text: "这次没有可用的表情包。sticker 必须是 0。" });
-  }
+  parts.push({ type: "text", text: stickerChoices(packOf(stickers)) });
   return [{ role: "user" as const, content: parts }];
 }
 
@@ -393,9 +453,9 @@ async function completeReply(chat: Chat, turn: WechatLine, armed: boolean, onTex
   });
   const allowLong = standingDirectives(chat).length > 0 || parseUserMarkup(turn.text).directives.length > 0;
   const split = splitChatPrompt(raw);
-  const parsed = parseWechatReply(split.visible, Math.min(8, stickers.length), allowLong, Boolean(settings.stWechatActiveId));
+  const pack = packOf(stickers);
+  const parsed = parseWechatReply(split.visible, pack.length, allowLong, Boolean(settings.stWechatActiveId));
   if (!parsed.bubbles.length) throw new Error("没写成文字");
-  const pack = stickers.slice(-8);
   const lines: WechatLine[] = parsed.bubbles.map((bubble) => ({
     id: uid("w_"),
     role: "assistant",
@@ -403,7 +463,7 @@ async function completeReply(chat: Chat, turn: WechatLine, armed: boolean, onTex
     attachments: [],
   }));
   if (parsed.sticker) {
-    const blobId = pack[parsed.sticker - 1];
+    const blobId = pack[parsed.sticker - 1]?.blobId;
     if (blobId) lines.push({ id: uid("w_"), role: "assistant", text: "", attachments: [{ blobId, kind: "sticker" }] });
   }
   if (armed) {
@@ -445,7 +505,9 @@ const PRIVATE_EXTRA = `上面列出的群记录，你当时也在场，按已经
 const GROUP_SYSTEM = `你在微信群里。你要一次写出每个在场角色发出的消息。每个角色都是她本人，坐在自己手机前面打字。她们知道这是微信群。
 
 气泡里只写发出去的话。不要写环境、动作、心理、旁白、摘要。
-每人这一轮发 1 到 3 条文字。先发谁、谁连发、谁后发，按这一轮聊天自然决定。可以一个人连着说完再换人，也可以穿插。不要套固定的先后顺序。
+每人这一轮发 1 到 3 条文字。bubbles 从上到下就是这一轮说出口的先后，不要按人各写一份再拼起来。
+这一轮是顺着往下聊的一段对话。后一条是在前一条已经发到群里之后才打的，写的人已经看见前面的气泡。后一条要接刚刚群里出现的那句，接另一个角色或者接用户都行。不要让每个人只回应用户刚发的内容，把别人这一轮说过的话当成还没发生。
+一个人可以连着发几条，也可以说一条就被别人接上。谁先发、谁连发，按这一轮怎么聊来，不要每次都先把一个角色说完再换人。
 每人至少一条里有汉字，不能只有表情符号。每条通常一句，不超过 40 个字。一句够就一条，不要拆开凑数。作者指令如果指定某一句必须发出，那一句可以超过 40 字。不要因此把整段写成小说。
 Emoji 可以视情况写进文字里，不是每条都要。
 表情包不是每次都要。没有表情包列表时，sticker 里每个角色都填 0。有列表时每人最多选一张，不合适就填 0。表情包不算进这 1 到 3 条。
@@ -453,7 +515,7 @@ Emoji 可以视情况写进文字里，不是每条都要。
 【已发生】必须在这一拍成立。身体和处境写进这个角色自己的 inner，不要把整段事实塞进气泡，也不要念出括号。
 【作者指令】她们听不见，不准念。和这一拍有关的必须执行。画图、镜头、构图、tag 不要写进气泡。
 
-inner 按人分开。每个人的内心只写她自己这一拍的动作、表情和心里话，大约四到八句。地点和正在做的事必须跟主聊天最近的情况、群记录，以及她这几条气泡。不许换地方，除非这几轮已经把人带到了那里。不要把剧情再往前演，不要把气泡重抄一遍。
+inner 按人分开。每个人的内心只写她自己这一拍的动作、表情和心里话，大约四到八句。写的是她这一轮最后一条发出去的那一刻，排在它前面的气泡她已经看见。地点和正在做的事必须跟主聊天最近的情况、群记录，以及她这几条气泡。不许换地方，除非这几轮已经把人带到了那里。不要把剧情再往前演，不要把气泡重抄一遍。
 如果这轮用户发来照片或表情包，每个角色的 inner 里用一两句写清画面大致是什么。这句只放 inner，不放进气泡。
 
 写某个角色的气泡和 inner 时，只能用群记录，以及标题写着「只有她知道」的那一块私聊。
@@ -461,7 +523,7 @@ inner 按人分开。每个人的内心只写她自己这一拍的动作、表�
 
 只返回一个 JSON，不要 markdown，不要解释：
 {"bubbles":[{"name":"角色名","text":"一条"}],"inner":{"角色名":"内心"},"sticker":{"角色名":0}}
-name 必须是在场角色的名字。`;
+name 必须是在场角色的名字。bubbles 按发出顺序写，不要按角色分成几块。`;
 
 function nameMap(chat: Chat) {
   return Object.fromEntries(chat.characters.map((c) => [c.id, c.name.trim() || "她"]));
@@ -500,7 +562,7 @@ function parseGroupReply(raw: string, chat: Chat, stickerMax: number, allowLong:
   const i = t.indexOf("{");
   const j = t.lastIndexOf("}");
   const byName = new Map(chat.characters.map((c) => [c.name.trim(), c]));
-  const buckets = new Map<string, string[]>();
+  let rawBubbles: { id: string; text: string }[] = [];
   const inners = new Map<string, string>();
   const stickers = new Map<string, number>();
   if (i >= 0 && j > i) {
@@ -514,12 +576,10 @@ function parseGroupReply(raw: string, chat: Chat, stickerMax: number, allowLong:
         for (const item of o.bubbles) {
           const rec = item as { name?: unknown; text?: unknown };
           const name = typeof rec?.name === "string" ? rec.name.trim() : "";
-          const text = typeof rec?.text === "string" ? rec.text.trim() : "";
+          const text = typeof rec?.text === "string" ? clipBubble(rec.text.trim(), allowLong) : "";
           const who = byName.get(name);
           if (!who || !text) continue;
-          const list = buckets.get(who.id) ?? [];
-          list.push(clipBubble(text, allowLong));
-          buckets.set(who.id, list);
+          rawBubbles.push({ id: who.id, text });
         }
       }
       if (o.inner && typeof o.inner === "object") {
@@ -536,15 +596,22 @@ function parseGroupReply(raw: string, chat: Chat, stickerMax: number, allowLong:
         }
       }
     } catch {
-      buckets.clear();
+      rawBubbles = [];
     }
   }
-  for (const [id, list] of buckets) {
-    const clipped = list.filter(Boolean).slice(0, 3);
-    if (!clipped.some(hasWord)) buckets.delete(id);
-    else buckets.set(id, clipped);
+  const counts = new Map<string, number>();
+  const capped: { id: string; text: string }[] = [];
+  for (const item of rawBubbles) {
+    const n = counts.get(item.id) ?? 0;
+    if (n >= 3) continue;
+    capped.push(item);
+    counts.set(item.id, n + 1);
   }
-  return { buckets, inners, stickers };
+  const ok = new Set<string>();
+  for (const id of counts.keys()) {
+    if (capped.some((b) => b.id === id && hasWord(b.text))) ok.add(id);
+  }
+  return { bubbles: capped.filter((b) => ok.has(b.id)), inners, stickers };
 }
 
 async function foldRoom(chat: Chat, key: string) {
@@ -582,7 +649,7 @@ async function foldRoom(chat: Chat, key: string) {
   }
 }
 
-async function multiMessages(chat: Chat, session: WechatSession, key: string, stickers: string[], turn: WechatLine) {
+async function multiMessages(chat: Chat, session: WechatSession, key: string, stickers: WechatSticker[], turn: WechatLine) {
   const standing = standingDirectives(chat);
   const names = nameMap(chat);
   const rooms = session.rooms ?? {};
@@ -641,16 +708,7 @@ async function multiMessages(chat: Chat, session: WechatSession, key: string, st
   for (const sticker of turn.attachments.filter((a) => a.kind === "sticker")) {
     await pushImage(parts, sticker.blobId, "下面这张是表情包，只取它的意思。");
   }
-  const pack = stickers.slice(-8);
-  if (pack.length) {
-    parts.push({
-      type: "text",
-      text: "下面是可以发的表情包，按编号。不合适就填 0。不要把它们当成用户发来的。",
-    });
-    for (let i = 0; i < pack.length; i++) await pushImage(parts, pack[i], `表情包 ${i + 1}`);
-  } else {
-    parts.push({ type: "text", text: "这次没有可用的表情包。sticker 必须是 0。" });
-  }
+  parts.push({ type: "text", text: stickerChoices(packOf(stickers)) });
   return [{ role: "user" as const, content: parts }];
 }
 
@@ -680,49 +738,49 @@ async function completeMulti(chat: Chat, key: string, turn: WechatLine, armed: b
   });
   const allowLong = standingDirectives(chat).length > 0 || parseUserMarkup(turn.text).directives.length > 0;
   const split = splitChatPrompt(raw);
-  const pack = stickers.slice(-8);
+  const pack = packOf(stickers);
   const lines: WechatLine[] = [];
   if (group) {
-    const parsed = parseGroupReply(split.visible, chat, Math.min(8, stickers.length), allowLong);
-    if (!parsed.buckets.size) throw new Error("没写成文字");
-    for (const [id, bubbles] of parsed.buckets) {
-      bubbles.forEach((bubble, index) => {
-        lines.push({
-          id: uid("w_"),
-          role: "assistant",
-          speakerId: id,
-          text: bubble,
-          attachments: [],
-          inner: index === bubbles.length - 1 ? parsed.inners.get(id) : undefined,
-        });
+    const parsed = parseGroupReply(split.visible, chat, pack.length, allowLong);
+    if (!parsed.bubbles.length) throw new Error("没写成文字");
+    const lastAt = new Map<string, number>();
+    parsed.bubbles.forEach((b, i) => lastAt.set(b.id, i));
+    parsed.bubbles.forEach((b, i) => {
+      const isLast = lastAt.get(b.id) === i;
+      lines.push({
+        id: uid("w_"),
+        role: "assistant",
+        speakerId: b.id,
+        text: b.text,
+        attachments: [],
+        inner: isLast ? parsed.inners.get(b.id) : undefined,
       });
-      const sticker = parsed.stickers.get(id) || 0;
-      const blobId = sticker ? pack[sticker - 1] : "";
-      if (blobId) {
-        const stickerLine: WechatLine = {
-          id: uid("w_"),
-          role: "assistant",
-          speakerId: id,
-          text: "",
-          attachments: [{ blobId, kind: "sticker" }],
-        };
-        const owned = lines.filter((line) => line.speakerId === id);
-        const last = owned[owned.length - 1];
-        if (last?.inner) {
-          stickerLine.inner = last.inner;
-          last.inner = undefined;
-        }
-        lines.push(stickerLine);
+      if (!isLast) return;
+      const sticker = parsed.stickers.get(b.id) || 0;
+      const blobId = sticker ? pack[sticker - 1]?.blobId : "";
+      if (!blobId) return;
+      const stickerLine: WechatLine = {
+        id: uid("w_"),
+        role: "assistant",
+        speakerId: b.id,
+        text: "",
+        attachments: [{ blobId, kind: "sticker" }],
+      };
+      const last = lines[lines.length - 1];
+      if (last?.inner) {
+        stickerLine.inner = last.inner;
+        last.inner = undefined;
       }
-    }
+      lines.push(stickerLine);
+    });
   } else {
-    const parsed = parseWechatReply(split.visible, Math.min(8, stickers.length), allowLong, Boolean(settings.stWechatActiveId));
+    const parsed = parseWechatReply(split.visible, pack.length, allowLong, Boolean(settings.stWechatActiveId));
     if (!parsed.bubbles.length) throw new Error("没写成文字");
     for (const bubble of parsed.bubbles) {
       lines.push({ id: uid("w_"), role: "assistant", speakerId: key, text: bubble, attachments: [] });
     }
     if (parsed.sticker) {
-      const blobId = pack[parsed.sticker - 1];
+      const blobId = pack[parsed.sticker - 1]?.blobId;
       if (blobId) lines.push({ id: uid("w_"), role: "assistant", speakerId: key, text: "", attachments: [{ blobId, kind: "sticker" }] });
     }
     if (lines.length) lines[lines.length - 1] = { ...lines[lines.length - 1], inner: parsed.inner };
@@ -759,7 +817,7 @@ async function completeMulti(chat: Chat, key: string, turn: WechatLine, armed: b
   onTextReady();
   if (armed) {
     const fresh = useApp.getState().chats.find((c) => c.id === chatId) ?? chat;
-    const tags = inline && split.prompt ? parseImageTagOutput(split.prompt, group ? fresh : { ...fresh, isMulti: false }) : null;
+    const tags = inline && split.prompt ? parseImageTagOutput(split.prompt, group ? fresh : { ...fresh, isMulti: false }, group) : null;
     const hasTags = Boolean(tags && (tags.base || Object.keys(tags.chars).length));
     await paintWechat(chat, lines[lines.length - 1].id, "auto", undefined, undefined, hasTags ? tags! : undefined);
   }

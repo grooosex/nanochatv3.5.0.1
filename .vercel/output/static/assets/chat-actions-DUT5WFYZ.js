@@ -1,0 +1,1 @@
+import{f as e}from"./routes-BDK5LuV7.js";export{e as sendOpening};

@@ -390,6 +390,33 @@ var GitBranch = createLucideIcon("git-branch", [
 * This source code is licensed under the ISC license.
 * See the LICENSE file in the root directory of this source tree.
 */
+var Image = createLucideIcon("image", [
+	["rect", {
+		width: "18",
+		height: "18",
+		x: "3",
+		y: "3",
+		rx: "2",
+		ry: "2",
+		key: "1m3agn"
+	}],
+	["circle", {
+		cx: "9",
+		cy: "9",
+		r: "2",
+		key: "af1f0g"
+	}],
+	["path", {
+		d: "m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21",
+		key: "1xmnt7"
+	}]
+]);
+/**
+* @license lucide-react v0.510.0 - ISC
+*
+* This source code is licensed under the ISC license.
+* See the LICENSE file in the root directory of this source tree.
+*/
 var LoaderCircle = createLucideIcon("loader-circle", [["path", {
 	d: "M21 12a9 9 0 1 1-6.219-8.56",
 	key: "13zald"
@@ -418,6 +445,36 @@ var Lock = createLucideIcon("lock", [["rect", {
 * This source code is licensed under the ISC license.
 * See the LICENSE file in the root directory of this source tree.
 */
+var Maximize2 = createLucideIcon("maximize-2", [
+	["polyline", {
+		points: "15 3 21 3 21 9",
+		key: "mznyad"
+	}],
+	["polyline", {
+		points: "9 21 3 21 3 15",
+		key: "1avn1i"
+	}],
+	["line", {
+		x1: "21",
+		x2: "14",
+		y1: "3",
+		y2: "10",
+		key: "ota7mn"
+	}],
+	["line", {
+		x1: "3",
+		x2: "10",
+		y1: "21",
+		y2: "14",
+		key: "1atl0r"
+	}]
+]);
+/**
+* @license lucide-react v0.510.0 - ISC
+*
+* This source code is licensed under the ISC license.
+* See the LICENSE file in the root directory of this source tree.
+*/
 var Menu = createLucideIcon("menu", [
 	["path", {
 		d: "M4 12h16",
@@ -432,6 +489,56 @@ var Menu = createLucideIcon("menu", [
 		key: "1o0s65"
 	}]
 ]);
+/**
+* @license lucide-react v0.510.0 - ISC
+*
+* This source code is licensed under the ISC license.
+* See the LICENSE file in the root directory of this source tree.
+*/
+var MessageCircle = createLucideIcon("message-circle", [["path", {
+	d: "M7.9 20A9 9 0 1 0 4 16.1L2 22Z",
+	key: "vv11sd"
+}]]);
+/**
+* @license lucide-react v0.510.0 - ISC
+*
+* This source code is licensed under the ISC license.
+* See the LICENSE file in the root directory of this source tree.
+*/
+var Minimize2 = createLucideIcon("minimize-2", [
+	["polyline", {
+		points: "4 14 10 14 10 20",
+		key: "11kfnr"
+	}],
+	["polyline", {
+		points: "20 10 14 10 14 4",
+		key: "rlmsce"
+	}],
+	["line", {
+		x1: "14",
+		x2: "21",
+		y1: "10",
+		y2: "3",
+		key: "o5lafz"
+	}],
+	["line", {
+		x1: "3",
+		x2: "10",
+		y1: "21",
+		y2: "14",
+		key: "1atl0r"
+	}]
+]);
+/**
+* @license lucide-react v0.510.0 - ISC
+*
+* This source code is licensed under the ISC license.
+* See the LICENSE file in the root directory of this source tree.
+*/
+var Minus = createLucideIcon("minus", [["path", {
+	d: "M5 12h14",
+	key: "1ays0h"
+}]]);
 /**
 * @license lucide-react v0.510.0 - ISC
 *
@@ -610,6 +717,38 @@ var SlidersHorizontal = createLucideIcon("sliders-horizontal", [
 		y1: "18",
 		y2: "22",
 		key: "1lctlv"
+	}]
+]);
+/**
+* @license lucide-react v0.510.0 - ISC
+*
+* This source code is licensed under the ISC license.
+* See the LICENSE file in the root directory of this source tree.
+*/
+var Smile = createLucideIcon("smile", [
+	["circle", {
+		cx: "12",
+		cy: "12",
+		r: "10",
+		key: "1mglay"
+	}],
+	["path", {
+		d: "M8 14s1.5 2 4 2 4-2 4-2",
+		key: "1y1vjs"
+	}],
+	["line", {
+		x1: "9",
+		x2: "9.01",
+		y1: "9",
+		y2: "9",
+		key: "yxxnd0"
+	}],
+	["line", {
+		x1: "15",
+		x2: "15.01",
+		y1: "9",
+		y2: "9",
+		key: "1p4y9e"
 	}]
 ]);
 /**
@@ -827,4 +966,4 @@ var X = createLucideIcon("x", [["path", {
 	key: "d8bk6v"
 }]]);
 //#endregion
-export { ChevronRight as A, FileUp as C, Copy as D, Download as E, ArrowUp as F, ArrowDown as I, AlignJustify as L, ChevronDown as M, Check as N, Clock as O, Bookmark as P, FolderInput as S, Ellipsis as T, Lock as _, Trash2 as a, Folder as b, Sparkles as c, ScanSearch as d, RefreshCw as f, Menu as g, Moon as h, TriangleAlert as i, ChevronLeft as j, ChevronUp as k, SlidersHorizontal as l, Pencil as m, WandSparkles as n, Sun as o, Plus as p, Upload as r, Star as s, X as t, Settings as u, LoaderCircle as v, Eye as w, FolderPlus as x, GitBranch as y };
+export { Eye as A, Bookmark as B, LoaderCircle as C, FolderPlus as D, Folder as E, ChevronUp as F, ArrowDown as H, ChevronRight as I, ChevronLeft as L, Download as M, Copy as N, FolderInput as O, Clock as P, ChevronDown as R, Lock as S, GitBranch as T, AlignJustify as U, ArrowUp as V, Minus as _, Trash2 as a, Menu as b, Sparkles as c, Settings as d, ScanSearch as f, Moon as g, Pencil as h, TriangleAlert as i, Ellipsis as j, FileUp as k, Smile as l, Plus as m, WandSparkles as n, Sun as o, RefreshCw as p, Upload as r, Star as s, X as t, SlidersHorizontal as u, Minimize2 as v, Image as w, Maximize2 as x, MessageCircle as y, Check as z };
