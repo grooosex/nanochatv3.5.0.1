@@ -105,6 +105,10 @@ export function parseWechatReply(raw: string, stickerMax: number, allowLong = fa
       bubbles = [];
     }
   }
+  if (!bubbles.length) {
+    const salvaged = arrayItems(t, "bubbles").filter((x): x is string => typeof x === "string" && !!x.trim());
+    if (salvaged.length) bubbles = salvaged.map((x) => x.trim());
+  }
   if (!bubbles.length && !strict) {
     const plain = t.replace(/\{[\s\S]*\}$/, "").trim();
     if (plain && !plain.includes("<<<PROMPT>>>")) bubbles = [plain];
@@ -113,6 +117,109 @@ export function parseWechatReply(raw: string, stickerMax: number, allowLong = fa
   if (!bubbles.some(hasWord)) bubbles = [];
   if (sticker < 1 || sticker > stickerMax) sticker = 0;
   return { bubbles, inner, sticker };
+}
+
+function endOfValue(src: string, start: number) {
+  if (src[start] === '"') {
+    let esc = false;
+    for (let j = start + 1; j < src.length; j++) {
+      if (esc) {
+        esc = false;
+        continue;
+      }
+      if (src[j] === "\\") {
+        esc = true;
+        continue;
+      }
+      if (src[j] === '"') return j + 1;
+    }
+    return -1;
+  }
+  if (src[start] !== "{") return -1;
+  let depth = 0;
+  let inStr = false;
+  let esc = false;
+  for (let j = start; j < src.length; j++) {
+    const c = src[j];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (c === "\\") esc = true;
+      else if (c === '"') inStr = false;
+      continue;
+    }
+    if (c === '"') inStr = true;
+    else if (c === "{") depth++;
+    else if (c === "}") {
+      depth--;
+      if (depth === 0) return j + 1;
+    }
+  }
+  return -1;
+}
+
+function arrayItems(src: string, key: string) {
+  const mark = src.search(new RegExp(`"${key}"\\s*:`));
+  if (mark < 0) return [];
+  const lb = src.indexOf("[", mark);
+  if (lb < 0) return [];
+  const out: unknown[] = [];
+  let i = lb + 1;
+  while (i < src.length) {
+    const c = src[i];
+    if (c === "]") break;
+    if (c === " " || c === "\n" || c === "\r" || c === "\t" || c === ",") {
+      i++;
+      continue;
+    }
+    if (c !== "{" && c !== '"') break;
+    const end = endOfValue(src, i);
+    if (end < 0) break;
+    try {
+      out.push(JSON.parse(src.slice(i, end)));
+    } catch {
+      break;
+    }
+    i = end;
+  }
+  return out;
+}
+
+function oneEdit(a: string, b: string) {
+  const aa = [...a];
+  const bb = [...b];
+  if (Math.abs(aa.length - bb.length) > 1) return false;
+  let i = 0;
+  let j = 0;
+  let used = false;
+  while (i < aa.length && j < bb.length) {
+    if (aa[i] === bb[j]) {
+      i++;
+      j++;
+      continue;
+    }
+    if (used) return false;
+    used = true;
+    if (aa.length === bb.length) {
+      i++;
+      j++;
+    } else if (aa.length > bb.length) i++;
+    else j++;
+  }
+  const rest = aa.length - i + (bb.length - j);
+  return used ? rest === 0 : rest === 1;
+}
+
+function matchChar(raw: string, characters: Character[]) {
+  const name = raw.trim().replace(/^[「『"']+|[」』"']+$/g, "").trim();
+  if (!name) return undefined;
+  const exact = characters.find((c) => c.name.trim() === name);
+  if (exact) return exact;
+  const loose = characters.filter((c) => {
+    const n = c.name.trim();
+    if (!n) return false;
+    return n.includes(name) || name.includes(n) || oneEdit(n, name);
+  });
+  return loose.length === 1 ? loose[0] : undefined;
 }
 
 function clipBubble(s: string, allowLong = false) {
@@ -342,6 +449,17 @@ function transcript(session: WechatSession, withInner: boolean, names?: Record<s
     .join("\n\n");
 }
 
+function turnCue(turn: WechatLine, group: boolean, standing: ReturnType<typeof standingDirectives>) {
+  if (turn.continued) return "用户这一轮没有发新的消息。接着刚才的话题往下聊，不要把上一轮的气泡再发一遍。";
+  return [
+    group ? "这一轮用户刚发到群里的在下面。按微信回。" : "这一轮用户刚发来的在下面。按微信回。",
+    turn.text.trim() ? formatUserForChat(turn.text, standing) : "用户这一轮没有写字。",
+    userTurnCaption(turn.attachments, turn.text),
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
 async function pushImage(parts: Part[], blobId: string, caption: string) {
   const url = await blobDataUrl(blobId);
   if (!url) return;
@@ -355,9 +473,7 @@ async function replyMessages(chat: Chat, session: WechatSession, stickers: Wecha
     personaPack(chat, session.charId),
     mainRecent(chat),
     transcript(session, true),
-    "这一轮用户刚发来的在下面。按微信回。",
-    turn.text.trim() ? formatUserForChat(turn.text, standing) : "用户这一轮没有写字。",
-    userTurnCaption(turn.attachments, turn.text),
+    turnCue(turn, false, standing),
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -561,10 +677,27 @@ function parseGroupReply(raw: string, chat: Chat, stickerMax: number, allowLong:
   const t = raw.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
   const i = t.indexOf("{");
   const j = t.lastIndexOf("}");
-  const byName = new Map(chat.characters.map((c) => [c.name.trim(), c]));
   let rawBubbles: { id: string; text: string }[] = [];
   const inners = new Map<string, string>();
   const stickers = new Map<string, number>();
+  const takeBubble = (item: unknown) => {
+    const rec = item as { name?: unknown; text?: unknown };
+    const name = typeof rec?.name === "string" ? rec.name : "";
+    const text = typeof rec?.text === "string" ? clipBubble(rec.text.trim(), allowLong) : "";
+    const who = matchChar(name, chat.characters);
+    if (!who || !text) return;
+    rawBubbles.push({ id: who.id, text });
+  };
+  const takeInner = (name: string, value: unknown) => {
+    const who = matchChar(name, chat.characters);
+    if (who && typeof value === "string" && value.trim()) inners.set(who.id, value.trim());
+  };
+  const takeSticker = (name: string, value: unknown) => {
+    const who = matchChar(name, chat.characters);
+    const n = Number(value) || 0;
+    if (who && n >= 1 && n <= stickerMax) stickers.set(who.id, n);
+  };
+  let parsed = false;
   if (i >= 0 && j > i) {
     try {
       const o = JSON.parse(t.slice(i, j + 1)) as {
@@ -572,31 +705,45 @@ function parseGroupReply(raw: string, chat: Chat, stickerMax: number, allowLong:
         inner?: unknown;
         sticker?: unknown;
       };
-      if (Array.isArray(o.bubbles)) {
-        for (const item of o.bubbles) {
-          const rec = item as { name?: unknown; text?: unknown };
-          const name = typeof rec?.name === "string" ? rec.name.trim() : "";
-          const text = typeof rec?.text === "string" ? clipBubble(rec.text.trim(), allowLong) : "";
-          const who = byName.get(name);
-          if (!who || !text) continue;
-          rawBubbles.push({ id: who.id, text });
-        }
-      }
+      parsed = true;
+      if (Array.isArray(o.bubbles)) for (const item of o.bubbles) takeBubble(item);
       if (o.inner && typeof o.inner === "object") {
-        for (const [name, value] of Object.entries(o.inner as Record<string, unknown>)) {
-          const who = byName.get(name.trim());
-          if (who && typeof value === "string" && value.trim()) inners.set(who.id, value.trim());
-        }
+        for (const [name, value] of Object.entries(o.inner as Record<string, unknown>)) takeInner(name, value);
       }
       if (o.sticker && typeof o.sticker === "object") {
-        for (const [name, value] of Object.entries(o.sticker as Record<string, unknown>)) {
-          const who = byName.get(name.trim());
-          const n = Number(value) || 0;
-          if (who && n >= 1 && n <= stickerMax) stickers.set(who.id, n);
-        }
+        for (const [name, value] of Object.entries(o.sticker as Record<string, unknown>)) takeSticker(name, value);
       }
     } catch {
-      rawBubbles = [];
+      parsed = false;
+    }
+  }
+  if (!parsed) {
+    for (const item of arrayItems(t, "bubbles")) takeBubble(item);
+    const innerMark = t.search(/"inner"\s*:/);
+    if (innerMark >= 0) {
+      const lb = t.indexOf("{", innerMark);
+      const end = lb >= 0 ? endOfValue(t, lb) : -1;
+      if (end > lb) {
+        try {
+          const inner = JSON.parse(t.slice(lb, end)) as Record<string, unknown>;
+          for (const [name, value] of Object.entries(inner)) takeInner(name, value);
+        } catch {
+          /* 内心被截断就不要 */
+        }
+      }
+    }
+    const stickerMark = t.search(/"sticker"\s*:/);
+    if (stickerMark >= 0) {
+      const lb = t.indexOf("{", stickerMark);
+      const end = lb >= 0 ? endOfValue(t, lb) : -1;
+      if (end > lb) {
+        try {
+          const sticker = JSON.parse(t.slice(lb, end)) as Record<string, unknown>;
+          for (const [name, value] of Object.entries(sticker)) takeSticker(name, value);
+        } catch {
+          /* 表情包编号被截断就不要 */
+        }
+      }
     }
   }
   const counts = new Map<string, number>();
@@ -674,9 +821,7 @@ async function multiMessages(chat: Chat, session: WechatSession, key: string, st
       mainRecent(chat),
       transcript(ownView, true, names),
       privates,
-      "这一轮用户刚发到群里的在下面。按微信回。",
-      turn.text.trim() ? formatUserForChat(turn.text, standing) : "用户这一轮没有写字。",
-      userTurnCaption(turn.attachments, turn.text),
+      turnCue(turn, true, standing),
     ]
       .filter(Boolean)
       .join("\n\n");
@@ -687,9 +832,7 @@ async function multiMessages(chat: Chat, session: WechatSession, key: string, st
       mainRecent(chat),
       groupText ? `【群记录】\n${groupText}` : "",
       transcript(ownView, true),
-      "这一轮用户刚发来的在下面。按微信回。",
-      turn.text.trim() ? formatUserForChat(turn.text, standing) : "用户这一轮没有写字。",
-      userTurnCaption(turn.attachments, turn.text),
+      turnCue(turn, false, standing),
     ]
       .filter(Boolean)
       .join("\n\n");
@@ -734,7 +877,7 @@ async function completeMulti(chat: Chat, key: string, turn: WechatLine, armed: b
     ...wechatPresetStyle(settings, chat, inline, group),
     grokModelId: chat.grokModelId,
     messages: await multiMessages(chat, { ...live, rooms: { ...live.rooms, [key]: room } }, key, stickers, turn),
-    max_tokens: inline ? 2200 : group ? 1600 : 800,
+    max_tokens: group ? 1200 + Math.max(1, chat.characters.length) * 900 + (inline ? 600 : 0) : inline ? 2200 : 800,
   });
   const allowLong = standingDirectives(chat).length > 0 || parseUserMarkup(turn.text).directives.length > 0;
   const split = splitChatPrompt(raw);
@@ -892,6 +1035,69 @@ export async function sendWechat(chat: Chat, onTextReady: () => void, replaceFro
   try {
     await completeReply(chat, turn, armed, onTextReady);
   } catch (e) {
+    onTextReady();
+    const err = e instanceof Error ? e.message : "没发出去";
+    if (err !== "Aborted") useApp.getState().toast(err);
+  } finally {
+    busy.delete(chatId);
+  }
+}
+
+function canContinue(lines: WechatLine[]) {
+  const last = [...lines].reverse().find((line) => !line.continued);
+  return last?.role === "assistant";
+}
+
+export async function continueWechat(chat: Chat, onTextReady: () => void) {
+  if (wechatIsMulti(chat)) {
+    const chatId = chat.id;
+    if (busy.has(chatId)) return;
+    const slot = await withMultiRoom(chat);
+    if (!slot || !canContinue(slot.room.lines)) return;
+    const armed = sessionOf(chatId)?.armed === true;
+    busy.add(chatId);
+    const turn: WechatLine = { id: uid("w_"), role: "user", text: "", attachments: [], continued: true };
+    patchSession(chatId, (s) => {
+      const rooms = { ...(s.rooms ?? {}) };
+      const cur = rooms[slot.key] ?? slot.room;
+      rooms[slot.key] = { ...cur, lines: [...cur.lines, turn] };
+      return { ...s, rooms };
+    });
+    try {
+      await completeMulti(chat, slot.key, turn, armed, onTextReady);
+    } catch (e) {
+      patchSession(chatId, (s) => {
+        const rooms = { ...(s.rooms ?? {}) };
+        const cur = rooms[slot.key];
+        if (!cur) return s;
+        const idx = cur.lines.findIndex((line) => line.id === turn.id);
+        if (idx < 0 || cur.lines.slice(idx + 1).some((line) => line.role === "assistant")) return s;
+        rooms[slot.key] = { ...cur, lines: cur.lines.filter((line) => line.id !== turn.id) };
+        return { ...s, rooms };
+      });
+      onTextReady();
+      const err = e instanceof Error ? e.message : "没发出去";
+      if (err !== "Aborted") useApp.getState().toast(err);
+    } finally {
+      busy.delete(chatId);
+    }
+    return;
+  }
+  const chatId = chat.id;
+  if (busy.has(chatId)) return;
+  const session = sessionOf(chatId);
+  if (!session || !canContinue(session.lines)) return;
+  busy.add(chatId);
+  const turn: WechatLine = { id: uid("w_"), role: "user", text: "", attachments: [], continued: true };
+  patchSession(chatId, (s) => ({ ...s, lines: [...s.lines, turn] }));
+  try {
+    await completeReply(chat, turn, session.armed, onTextReady);
+  } catch (e) {
+    patchSession(chatId, (s) => {
+      const idx = s.lines.findIndex((line) => line.id === turn.id);
+      if (idx < 0 || s.lines.slice(idx + 1).some((line) => line.role === "assistant")) return s;
+      return { ...s, lines: s.lines.filter((line) => line.id !== turn.id) };
+    });
     onTextReady();
     const err = e instanceof Error ? e.message : "没发出去";
     if (err !== "Aborted") useApp.getState().toast(err);

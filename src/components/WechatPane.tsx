@@ -8,7 +8,7 @@ import { extractGrokTail } from "@/lib/nai-tags";
 import { compressRef, isImageFile } from "@/lib/ref-image";
 import { saveBlob, useApp } from "@/lib/store";
 import type { Chat, GenImage, WechatAttach, WechatLine, WechatLog, WechatSession, WechatSticker } from "@/lib/types";
-import { emptyWechatSession, ensureMultiSession, describeSticker, lineImages, paintWechat, queueStickerBrief, regenWechat, sendWechat, sessionHasLines, summarizeWechat, WECHAT_GROUP, wechatIsMulti, wechatTurnText, cancelWechatImage } from "@/lib/wechat";
+import { emptyWechatSession, ensureMultiSession, describeSticker, lineImages, paintWechat, queueStickerBrief, regenWechat, sendWechat, continueWechat, sessionHasLines, summarizeWechat, WECHAT_GROUP, wechatIsMulti, wechatTurnText, cancelWechatImage } from "@/lib/wechat";
 import { autoScrollNearEdge, downloadBlob, indexFromY, moveId, nearestScroller, uid } from "@/lib/utils";
 import { ImagePick } from "./ImagePick";
 import { ChatAvatar, useCooldown } from "./ui-kit";
@@ -410,6 +410,20 @@ function WechatLive({ chat, session }: { chat: Chat; session: WechatSession }) {
           setPicked(null);
         }}
       />
+      {phase === "idle" && [...lines].reverse().find((line) => !line.continued)?.role === "assistant" ? (
+        <div className="flex justify-center py-2">
+          <button
+            type="button"
+            className="rounded-full border border-neutral-300 bg-white px-5 py-1 text-[14px]"
+            onClick={() => {
+              setPhase("type");
+              void continueWechat(chat, () => setPhase("idle"));
+            }}
+          >
+            继续
+          </button>
+        </div>
+      ) : null}
       {phase === "sum" ? <div className="py-2 text-center text-[12px] text-neutral-500">正在总结</div> : null}
     </Shell>
   );
@@ -588,7 +602,7 @@ function Thread({
   return (
     <div className="flex flex-col gap-2">
       {lines.map((line) =>
-        line.role === "user" ? (
+        line.continued ? null : line.role === "user" ? (
           <div key={line.id} className="flex flex-col items-end gap-1" onClick={() => onPick?.(line.id)}>
             {line.text.trim() ? <UserBubble text={line.text} /> : null}
             {line.attachments.map((a, i) => (
@@ -942,7 +956,7 @@ function EmojiPanel({
           ))}
         </div>
       ) : (
-        <div className="grid max-h-36 grid-cols-4 gap-2 overflow-y-auto">
+        <div className="grid max-h-44 grid-cols-5 gap-1.5 overflow-y-auto">
           <ImagePick
             onFile={(file) => {
               void compressRef(file, 512, 0.85).then(async (blob) => onAddSticker(await saveBlob(blob)));
@@ -1297,8 +1311,8 @@ function StickerBriefRow({
       >
         {url ? <img src={url} alt="" draggable={false} className="size-full object-contain" /> : null}
       </button>
-      <div className="relative min-w-0 flex-1 rounded-xl border border-neutral-200">
-        <div className="absolute top-1 right-1 z-10 flex">
+      <div className="min-w-0 flex-1">
+        <div className="mb-1 flex justify-end">
           <button type="button" className="grid size-7 place-items-center text-neutral-500 disabled:opacity-40" aria-label="重新生成" disabled={busy} onClick={onRegen}>
             {busy ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
           </button>
@@ -1308,9 +1322,8 @@ function StickerBriefRow({
         </div>
         <textarea
           value={row.brief}
-          rows={3}
           placeholder="还没有简述"
-          className="w-full resize-none bg-transparent px-2 pt-8 pb-2 text-[14px] leading-snug outline-none"
+          className="min-h-16 w-full resize-none rounded-xl border border-neutral-200 bg-white px-3 py-2 text-[14px] leading-snug text-black outline-none [field-sizing:content]"
           onChange={(e) => onChange(e.target.value)}
         />
       </div>

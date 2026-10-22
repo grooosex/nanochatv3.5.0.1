@@ -2,12 +2,12 @@ import { i as __toESM, n as __exportAll } from "../_runtime.mjs";
 import { d as require_react_dom, q as require_react, x as require_jsx_runtime } from "../_libs/@tanstack/react-router+[...].mjs";
 import { i as zipSync, n as strToU8, r as unzipSync, t as strFromU8 } from "../_libs/fflate.mjs";
 import { A as Eye, B as Bookmark, C as LoaderCircle, D as FolderPlus, E as Folder, F as ChevronUp, H as ArrowDown, I as ChevronRight, L as ChevronLeft, M as Download, N as Copy, O as FolderInput, P as Clock, R as ChevronDown, S as Lock, T as GitBranch, U as AlignJustify, V as ArrowUp, _ as Minus, a as Trash2, b as Menu, c as Sparkles, d as Settings, f as ScanSearch, g as Moon, h as Pencil, j as Ellipsis, k as FileUp, l as Smile, m as Plus, n as WandSparkles, o as Sun, p as RefreshCw, r as Upload, s as Star, t as X, u as SlidersHorizontal, v as Minimize2, w as Image, x as Maximize2, y as MessageCircle, z as Check } from "../_libs/lucide-react.mjs";
-import { A as NAI_MODELS, B as defaultPureParams, C as DEFAULT_STATUS_BAR, D as IMAGE_DRAW_TIMEOUT_MS, E as GROK_MODELS$1, F as SAMPLERS, G as normalizePureParams, H as joinPromptParts, I as SENSITIVE_PREFIX, K as shortModelLabel, L as UC, M as NOISE_SCHEDULES, N as PLACEHOLDERS, O as IMAGE_GEN_TIMEOUT_MS, P as RESOLUTIONS, R as UNCENSORED_TAG, S as DEFAULT_NAI_BASE, T as FURRY_TAG, U as mergeLlmParams, V as emptyCharacter, W as migrateGrokId, _ as wechatGroupCastFormat, a as IMAGE_SHOT_RULES, b as DEFAULT_GROK, c as fieldPolishHint, d as imageLengthRules, f as imageWriteMaxTokens, g as voicePolishExtra, h as splitChatPrompt, i as IMAGE_MULTI_RULES, j as NAI_POLL_MS, k as NAI_HOP_TIMEOUT_MS, l as groupFormatHint, m as roleSnapshot, n as FIELD_LABELS, o as chatContextBlock, p as multiInsertInstruction, q as __exportAll$1, r as IMAGE_BG_RULES, s as chatImageSystem, u as imageApplyRules, v as wechatImageTail, w as FULLBODY_TAG, x as DEFAULT_LLM_PARAMS, y as COOLDOWN_MS, z as defaultImageParams } from "./router-CSUo1aru.mjs";
+import { A as NAI_MODELS, B as defaultPureParams, C as DEFAULT_STATUS_BAR, D as IMAGE_DRAW_TIMEOUT_MS, E as GROK_MODELS$1, F as SAMPLERS, G as normalizePureParams, H as joinPromptParts, I as SENSITIVE_PREFIX, K as shortModelLabel, L as UC, M as NOISE_SCHEDULES, N as PLACEHOLDERS, O as IMAGE_GEN_TIMEOUT_MS, P as RESOLUTIONS, R as UNCENSORED_TAG, S as DEFAULT_NAI_BASE, T as FURRY_TAG, U as mergeLlmParams, V as emptyCharacter, W as migrateGrokId, _ as wechatGroupCastFormat, a as IMAGE_SHOT_RULES, b as DEFAULT_GROK, c as fieldPolishHint, d as imageLengthRules, f as imageWriteMaxTokens, g as voicePolishExtra, h as splitChatPrompt, i as IMAGE_MULTI_RULES, j as NAI_POLL_MS, k as NAI_HOP_TIMEOUT_MS, l as groupFormatHint, m as roleSnapshot, n as FIELD_LABELS, o as chatContextBlock, p as multiInsertInstruction, q as __exportAll$1, r as IMAGE_BG_RULES, s as chatImageSystem, u as imageApplyRules, v as wechatImageTail, w as FULLBODY_TAG, x as DEFAULT_LLM_PARAMS, y as COOLDOWN_MS, z as defaultImageParams } from "./router-GvgQLFyn.mjs";
 import { t as Dexie } from "../_libs/dexie.mjs";
 import { t as clsx } from "../_libs/clsx.mjs";
 import { t as twMerge } from "../_libs/tailwind-merge.mjs";
 import { t as create } from "../_libs/zustand.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/idb-BNoY--bX.js
+//#region node_modules/.nitro/vite/services/ssr/assets/idb-BJWFUb7e.js
 function cn(...inputs) {
 	return twMerge(clsx(inputs));
 }
@@ -620,8 +620,8 @@ function cachedUrl(id) {
 	return id ? urlCache.get(id) ?? null : null;
 }
 //#endregion
-//#region node_modules/.nitro/vite/services/ssr/assets/routes-C7djG2xn.js
-var routes_C7djG2xn_exports = /* @__PURE__ */ __exportAll({
+//#region node_modules/.nitro/vite/services/ssr/assets/routes-DVYFvhLo.js
+var routes_DVYFvhLo_exports = /* @__PURE__ */ __exportAll({
 	a: () => cancelMemory,
 	c: () => regenMessage,
 	component: () => Home,
@@ -4722,6 +4722,10 @@ function parseWechatReply(raw, stickerMax, allowLong = false, strict = false) {
 	} catch {
 		bubbles = [];
 	}
+	if (!bubbles.length) {
+		const salvaged = arrayItems(t, "bubbles").filter((x) => typeof x === "string" && !!x.trim());
+		if (salvaged.length) bubbles = salvaged.map((x) => x.trim());
+	}
 	if (!bubbles.length && !strict) {
 		const plain = t.replace(/\{[\s\S]*\}$/, "").trim();
 		if (plain && !plain.includes("<<<PROMPT>>>")) bubbles = [plain];
@@ -4734,6 +4738,105 @@ function parseWechatReply(raw, stickerMax, allowLong = false, strict = false) {
 		inner,
 		sticker
 	};
+}
+function endOfValue(src, start) {
+	if (src[start] === "\"") {
+		let esc = false;
+		for (let j = start + 1; j < src.length; j++) {
+			if (esc) {
+				esc = false;
+				continue;
+			}
+			if (src[j] === "\\") {
+				esc = true;
+				continue;
+			}
+			if (src[j] === "\"") return j + 1;
+		}
+		return -1;
+	}
+	if (src[start] !== "{") return -1;
+	let depth = 0;
+	let inStr = false;
+	let esc = false;
+	for (let j = start; j < src.length; j++) {
+		const c = src[j];
+		if (inStr) {
+			if (esc) esc = false;
+			else if (c === "\\") esc = true;
+			else if (c === "\"") inStr = false;
+			continue;
+		}
+		if (c === "\"") inStr = true;
+		else if (c === "{") depth++;
+		else if (c === "}") {
+			depth--;
+			if (depth === 0) return j + 1;
+		}
+	}
+	return -1;
+}
+function arrayItems(src, key) {
+	const mark = src.search(new RegExp(`"${key}"\\s*:`));
+	if (mark < 0) return [];
+	const lb = src.indexOf("[", mark);
+	if (lb < 0) return [];
+	const out = [];
+	let i = lb + 1;
+	while (i < src.length) {
+		const c = src[i];
+		if (c === "]") break;
+		if (c === " " || c === "\n" || c === "\r" || c === "	" || c === ",") {
+			i++;
+			continue;
+		}
+		if (c !== "{" && c !== "\"") break;
+		const end = endOfValue(src, i);
+		if (end < 0) break;
+		try {
+			out.push(JSON.parse(src.slice(i, end)));
+		} catch {
+			break;
+		}
+		i = end;
+	}
+	return out;
+}
+function oneEdit(a, b) {
+	const aa = [...a];
+	const bb = [...b];
+	if (Math.abs(aa.length - bb.length) > 1) return false;
+	let i = 0;
+	let j = 0;
+	let used = false;
+	while (i < aa.length && j < bb.length) {
+		if (aa[i] === bb[j]) {
+			i++;
+			j++;
+			continue;
+		}
+		if (used) return false;
+		used = true;
+		if (aa.length === bb.length) {
+			i++;
+			j++;
+		} else if (aa.length > bb.length) i++;
+		else j++;
+	}
+	const rest = aa.length - i + (bb.length - j);
+	return used ? rest === 0 : rest === 1;
+}
+function matchChar(raw, characters) {
+	const name = raw.trim().replace(/^[「『"']+|[」』"']+$/g, "").trim();
+	if (!name) return void 0;
+	const exact = characters.find((c) => c.name.trim() === name);
+	if (exact) return exact;
+	const loose = characters.filter((c) => {
+		const n = c.name.trim();
+		if (!n) return false;
+		return n.includes(name) || name.includes(n) || oneEdit(n, name);
+	});
+	return loose.length === 1 ? loose[0] : void 0;
 }
 function clipBubble(s, allowLong = false) {
 	const t = s.replace(/\s+/g, " ").trim();
@@ -4935,6 +5038,14 @@ function transcript(session, withInner, names) {
 	const recent = pending.flat().map((line) => lineText(line, withInner, names)).filter(Boolean).join("\n");
 	return [session.earlier.trim() ? `更早的微信摘要：\n${session.earlier.trim()}` : "", recent ? `微信记录，以最后一轮为重：\n${recent}` : ""].filter(Boolean).join("\n\n");
 }
+function turnCue(turn, group, standing) {
+	if (turn.continued) return "用户这一轮没有发新的消息。接着刚才的话题往下聊，不要把上一轮的气泡再发一遍。";
+	return [
+		group ? "这一轮用户刚发到群里的在下面。按微信回。" : "这一轮用户刚发来的在下面。按微信回。",
+		turn.text.trim() ? formatUserForChat(turn.text, standing) : "用户这一轮没有写字。",
+		userTurnCaption(turn.attachments, turn.text)
+	].filter(Boolean).join("\n\n");
+}
 async function pushImage(parts, blobId, caption) {
 	const url = await blobDataUrl(blobId);
 	if (!url) return;
@@ -4955,9 +5066,7 @@ async function replyMessages(chat, session, stickers, turn) {
 			personaPack(chat, session.charId),
 			mainRecent(chat),
 			transcript(session, true),
-			"这一轮用户刚发来的在下面。按微信回。",
-			turn.text.trim() ? formatUserForChat(turn.text, standing) : "用户这一轮没有写字。",
-			userTurnCaption(turn.attachments, turn.text)
+			turnCue(turn, false, standing)
 		].filter(Boolean).join("\n\n")
 	}];
 	let photoN = 0;
@@ -5161,34 +5270,59 @@ function parseGroupReply(raw, chat, stickerMax, allowLong) {
 	const t = raw.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
 	const i = t.indexOf("{");
 	const j = t.lastIndexOf("}");
-	const byName = new Map(chat.characters.map((c) => [c.name.trim(), c]));
 	let rawBubbles = [];
 	const inners = /* @__PURE__ */ new Map();
 	const stickers = /* @__PURE__ */ new Map();
+	const takeBubble = (item) => {
+		const rec = item;
+		const name = typeof rec?.name === "string" ? rec.name : "";
+		const text = typeof rec?.text === "string" ? clipBubble(rec.text.trim(), allowLong) : "";
+		const who = matchChar(name, chat.characters);
+		if (!who || !text) return;
+		rawBubbles.push({
+			id: who.id,
+			text
+		});
+	};
+	const takeInner = (name, value) => {
+		const who = matchChar(name, chat.characters);
+		if (who && typeof value === "string" && value.trim()) inners.set(who.id, value.trim());
+	};
+	const takeSticker = (name, value) => {
+		const who = matchChar(name, chat.characters);
+		const n = Number(value) || 0;
+		if (who && n >= 1 && n <= stickerMax) stickers.set(who.id, n);
+	};
+	let parsed = false;
 	if (i >= 0 && j > i) try {
 		const o = JSON.parse(t.slice(i, j + 1));
-		if (Array.isArray(o.bubbles)) for (const item of o.bubbles) {
-			const rec = item;
-			const name = typeof rec?.name === "string" ? rec.name.trim() : "";
-			const text = typeof rec?.text === "string" ? clipBubble(rec.text.trim(), allowLong) : "";
-			const who = byName.get(name);
-			if (!who || !text) continue;
-			rawBubbles.push({
-				id: who.id,
-				text
-			});
-		}
-		if (o.inner && typeof o.inner === "object") for (const [name, value] of Object.entries(o.inner)) {
-			const who = byName.get(name.trim());
-			if (who && typeof value === "string" && value.trim()) inners.set(who.id, value.trim());
-		}
-		if (o.sticker && typeof o.sticker === "object") for (const [name, value] of Object.entries(o.sticker)) {
-			const who = byName.get(name.trim());
-			const n = Number(value) || 0;
-			if (who && n >= 1 && n <= stickerMax) stickers.set(who.id, n);
-		}
+		parsed = true;
+		if (Array.isArray(o.bubbles)) for (const item of o.bubbles) takeBubble(item);
+		if (o.inner && typeof o.inner === "object") for (const [name, value] of Object.entries(o.inner)) takeInner(name, value);
+		if (o.sticker && typeof o.sticker === "object") for (const [name, value] of Object.entries(o.sticker)) takeSticker(name, value);
 	} catch {
-		rawBubbles = [];
+		parsed = false;
+	}
+	if (!parsed) {
+		for (const item of arrayItems(t, "bubbles")) takeBubble(item);
+		const innerMark = t.search(/"inner"\s*:/);
+		if (innerMark >= 0) {
+			const lb = t.indexOf("{", innerMark);
+			const end = lb >= 0 ? endOfValue(t, lb) : -1;
+			if (end > lb) try {
+				const inner = JSON.parse(t.slice(lb, end));
+				for (const [name, value] of Object.entries(inner)) takeInner(name, value);
+			} catch {}
+		}
+		const stickerMark = t.search(/"sticker"\s*:/);
+		if (stickerMark >= 0) {
+			const lb = t.indexOf("{", stickerMark);
+			const end = lb >= 0 ? endOfValue(t, lb) : -1;
+			if (end > lb) try {
+				const sticker = JSON.parse(t.slice(lb, end));
+				for (const [name, value] of Object.entries(sticker)) takeSticker(name, value);
+			} catch {}
+		}
 	}
 	const counts = /* @__PURE__ */ new Map();
 	const capped = [];
@@ -5273,9 +5407,7 @@ async function multiMessages(chat, session, key, stickers, turn) {
 			mainRecent(chat),
 			transcript(ownView, true, names),
 			privates,
-			"这一轮用户刚发到群里的在下面。按微信回。",
-			turn.text.trim() ? formatUserForChat(turn.text, standing) : "用户这一轮没有写字。",
-			userTurnCaption(turn.attachments, turn.text)
+			turnCue(turn, true, standing)
 		].filter(Boolean).join("\n\n");
 	} else {
 		const groupText = sideText(rooms["group"] ?? emptyRoom(), names);
@@ -5284,9 +5416,7 @@ async function multiMessages(chat, session, key, stickers, turn) {
 			mainRecent(chat),
 			groupText ? `【群记录】\n${groupText}` : "",
 			transcript(ownView, true),
-			"这一轮用户刚发来的在下面。按微信回。",
-			turn.text.trim() ? formatUserForChat(turn.text, standing) : "用户这一轮没有写字。",
-			userTurnCaption(turn.attachments, turn.text)
+			turnCue(turn, false, standing)
 		].filter(Boolean).join("\n\n");
 	}
 	const parts = [{
@@ -5336,7 +5466,7 @@ async function completeMulti(chat, key, turn, armed, onTextReady) {
 				[key]: room
 			}
 		}, key, stickers, turn),
-		max_tokens: inline ? 2200 : group ? 1600 : 800
+		max_tokens: group ? 1200 + Math.max(1, chat.characters.length) * 900 + (inline ? 600 : 0) : inline ? 2200 : 800
 	});
 	const allowLong = standingDirectives(chat).length > 0 || parseUserMarkup(turn.text).directives.length > 0;
 	const split = splitChatPrompt(raw);
@@ -5546,6 +5676,96 @@ async function sendWechat(chat, onTextReady, replaceFromId) {
 	try {
 		await completeReply(chat, turn, armed, onTextReady);
 	} catch (e) {
+		onTextReady();
+		const err = e instanceof Error ? e.message : "没发出去";
+		if (err !== "Aborted") useApp.getState().toast(err);
+	} finally {
+		busy$1.delete(chatId);
+	}
+}
+function canContinue(lines) {
+	return [...lines].reverse().find((line) => !line.continued)?.role === "assistant";
+}
+async function continueWechat(chat, onTextReady) {
+	if (wechatIsMulti(chat)) {
+		const chatId = chat.id;
+		if (busy$1.has(chatId)) return;
+		const slot = await withMultiRoom(chat);
+		if (!slot || !canContinue(slot.room.lines)) return;
+		const armed = sessionOf(chatId)?.armed === true;
+		busy$1.add(chatId);
+		const turn = {
+			id: uid("w_"),
+			role: "user",
+			text: "",
+			attachments: [],
+			continued: true
+		};
+		patchSession(chatId, (s) => {
+			const rooms = { ...s.rooms ?? {} };
+			const cur = rooms[slot.key] ?? slot.room;
+			rooms[slot.key] = {
+				...cur,
+				lines: [...cur.lines, turn]
+			};
+			return {
+				...s,
+				rooms
+			};
+		});
+		try {
+			await completeMulti(chat, slot.key, turn, armed, onTextReady);
+		} catch (e) {
+			patchSession(chatId, (s) => {
+				const rooms = { ...s.rooms ?? {} };
+				const cur = rooms[slot.key];
+				if (!cur) return s;
+				const idx = cur.lines.findIndex((line) => line.id === turn.id);
+				if (idx < 0 || cur.lines.slice(idx + 1).some((line) => line.role === "assistant")) return s;
+				rooms[slot.key] = {
+					...cur,
+					lines: cur.lines.filter((line) => line.id !== turn.id)
+				};
+				return {
+					...s,
+					rooms
+				};
+			});
+			onTextReady();
+			const err = e instanceof Error ? e.message : "没发出去";
+			if (err !== "Aborted") useApp.getState().toast(err);
+		} finally {
+			busy$1.delete(chatId);
+		}
+		return;
+	}
+	const chatId = chat.id;
+	if (busy$1.has(chatId)) return;
+	const session = sessionOf(chatId);
+	if (!session || !canContinue(session.lines)) return;
+	busy$1.add(chatId);
+	const turn = {
+		id: uid("w_"),
+		role: "user",
+		text: "",
+		attachments: [],
+		continued: true
+	};
+	patchSession(chatId, (s) => ({
+		...s,
+		lines: [...s.lines, turn]
+	}));
+	try {
+		await completeReply(chat, turn, session.armed, onTextReady);
+	} catch (e) {
+		patchSession(chatId, (s) => {
+			const idx = s.lines.findIndex((line) => line.id === turn.id);
+			if (idx < 0 || s.lines.slice(idx + 1).some((line) => line.role === "assistant")) return s;
+			return {
+				...s,
+				lines: s.lines.filter((line) => line.id !== turn.id)
+			};
+		});
 		onTextReady();
 		const err = e instanceof Error ? e.message : "没发出去";
 		if (err !== "Aborted") useApp.getState().toast(err);
@@ -7765,6 +7985,18 @@ function WechatLive({ chat, session }) {
 					setPicked(null);
 				}
 			}),
+			phase === "idle" && [...lines].reverse().find((line) => !line.continued)?.role === "assistant" ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				className: "flex justify-center py-2",
+				children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+					type: "button",
+					className: "rounded-full border border-neutral-300 bg-white px-5 py-1 text-[14px]",
+					onClick: () => {
+						setPhase("type");
+						continueWechat(chat, () => setPhase("idle"));
+					},
+					children: "继续"
+				})
+			}) : null,
 			phase === "sum" ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 				className: "py-2 text-center text-[12px] text-neutral-500",
 				children: "正在总结"
@@ -7912,7 +8144,7 @@ function Shell$1({ title, onClose, children, footer, overlay, scrollRef, full, o
 function Thread({ chat, name, lines, names, speakerId, roomNames, openInner, toggleInner, picked, onPick, onRegen, onEdit, readOnly }) {
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 		className: "flex flex-col gap-2",
-		children: lines.map((line) => line.role === "user" ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		children: lines.map((line) => line.continued ? null : line.role === "user" ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 			className: "flex flex-col items-end gap-1",
 			onClick: () => onPick?.(line.id),
 			children: [
@@ -8267,7 +8499,7 @@ function EmojiPanel({ tab, setTab, stickers, onEmoji, onSticker, onDeleteSticker
 				children: ch
 			}, ch))
 		}) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-			className: "grid max-h-36 grid-cols-4 gap-2 overflow-y-auto",
+			className: "grid max-h-44 grid-cols-5 gap-1.5 overflow-y-auto",
 			children: [
 				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ImagePick, {
 					onFile: (file) => {
@@ -8621,9 +8853,9 @@ function StickerBriefRow({ row, sortMode, dragging, busy, onChange, onRegen, onD
 				}) : null
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				className: "relative min-w-0 flex-1 rounded-xl border border-neutral-200",
+				className: "min-w-0 flex-1",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					className: "absolute top-1 right-1 z-10 flex",
+					className: "mb-1 flex justify-end",
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 						type: "button",
 						className: "grid size-7 place-items-center text-neutral-500 disabled:opacity-40",
@@ -8640,9 +8872,8 @@ function StickerBriefRow({ row, sortMode, dragging, busy, onChange, onRegen, onD
 					})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("textarea", {
 					value: row.brief,
-					rows: 3,
 					placeholder: "还没有简述",
-					className: "w-full resize-none bg-transparent px-2 pt-8 pb-2 text-[14px] leading-snug outline-none",
+					className: "min-h-16 w-full resize-none rounded-xl border border-neutral-200 bg-white px-3 py-2 text-[14px] leading-snug text-black outline-none [field-sizing:content]",
 					onChange: (e) => onChange(e.target.value)
 				})]
 			}),
@@ -13943,7 +14174,7 @@ function RoleEditor({ chat, mode }) {
 		}));
 		useApp.getState().commitChat(chat.id);
 		if (mode === "create") {
-			const { sendOpening } = await import("./chat-actions-DMO7DqkA.mjs");
+			const { sendOpening } = await import("./chat-actions-DO1JNA53.mjs");
 			sendOpening(chat.id);
 		} else useApp.getState().toast("设定已保存");
 	};
@@ -15895,7 +16126,7 @@ function MultiCreateModal() {
 					const draft = makeDraft();
 					pushDraft(draft);
 					useApp.getState().commitChat(draft.id);
-					const { sendOpening } = await import("./chat-actions-DMO7DqkA.mjs");
+					const { sendOpening } = await import("./chat-actions-DO1JNA53.mjs");
 					sendOpening(draft.id);
 				},
 				children: "跳过，开始聊天"
@@ -15910,4 +16141,4 @@ function Home() {
 	});
 }
 //#endregion
-export { imagePresetStyle as A, pruneStarred as B, defaultSettings as C, idb_exports as D, getImage as E, loadAll as F, restoreSampler as G, randomSeed as H, moveId as I, sortHistoryNewestFirst as J, samplerPatch as K, nearestScroller as L, imageWriteFields as M, indexFromY as N, imageAiLabel as O, llmIdentity as P, wechatPresetStyle as Q, parseChatCompletionPreset as R, db as S, downloadBlob as T, rememberUrl as U, putImage as V, resolveImageWrite as W, uniqueNumberedName as X, uid as Y, uniquePresetName as Z, applyLlmPick as _, cancelMemory as a, chatPickerModels as b, regenMessage as c, Home as component, sendOpening as d, sendUser as f, applyImageAiPick as g, activePreset as h, cancelImage as i, imageUrl as j, imagePickerModels as k, retryMemory as l, FOLLOW_IMAGE_AI as m, attachImage as n, editMessage as o, routes_C7djG2xn_exports as p, snapshotLlmAccount as q, branchFrom as r, invalidateMemory as s, abortChat as t, runManualMemory as u, autoScrollNearEdge as v, deleteImage as w, cn as x, cachedUrl as y, presetStyle as z };
+export { imagePresetStyle as A, pruneStarred as B, defaultSettings as C, idb_exports as D, getImage as E, loadAll as F, restoreSampler as G, randomSeed as H, moveId as I, sortHistoryNewestFirst as J, samplerPatch as K, nearestScroller as L, imageWriteFields as M, indexFromY as N, imageAiLabel as O, llmIdentity as P, wechatPresetStyle as Q, parseChatCompletionPreset as R, db as S, downloadBlob as T, rememberUrl as U, putImage as V, resolveImageWrite as W, uniqueNumberedName as X, uid as Y, uniquePresetName as Z, applyLlmPick as _, cancelMemory as a, chatPickerModels as b, regenMessage as c, Home as component, sendOpening as d, sendUser as f, applyImageAiPick as g, activePreset as h, cancelImage as i, imageUrl as j, imagePickerModels as k, retryMemory as l, FOLLOW_IMAGE_AI as m, attachImage as n, editMessage as o, routes_DVYFvhLo_exports as p, snapshotLlmAccount as q, branchFrom as r, invalidateMemory as s, abortChat as t, runManualMemory as u, autoScrollNearEdge as v, deleteImage as w, cn as x, cachedUrl as y, presetStyle as z };

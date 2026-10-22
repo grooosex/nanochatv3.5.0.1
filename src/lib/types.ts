@@ -150,6 +150,8 @@ export interface WechatLine {
   images?: GenImage[];
   /** 多人微信里这条是谁发的。单人没有。 */
   speakerId?: string;
+  /** 点了继续。不显示气泡，只用来把这一轮和上一轮分开。 */
+  continued?: boolean;
   /** @deprecated 旧的单图框 */
   gen?: { status: "pending" | "done" | "error"; blobId?: string; error?: string };
 }

@@ -3,7 +3,7 @@ import { _ as lazyRouteComponent, b as useRouter, f as Scripts, g as Outlet, h a
 import { r as unzipSync } from "../_libs/fflate.mjs";
 import { i as TriangleAlert } from "../_libs/lucide-react.mjs";
 import { a as union, i as string, n as number, r as object, t as literal } from "../_libs/zod.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/router-CSUo1aru.js
+//#region node_modules/.nitro/vite/services/ssr/assets/router-GvgQLFyn.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var __defProp = Object.defineProperty;
@@ -1145,7 +1145,7 @@ function PreviewHostBridge() {
 	}, [router]);
 	return null;
 }
-var styles_default = "/assets/styles-ezMTc3g4.css";
+var styles_default = "/assets/styles-RrvFdz6E.css";
 var APP_NAME = "绘语";
 var Route$4 = createRootRoute({
 	head: () => ({
@@ -1195,7 +1195,7 @@ var Route$4 = createRootRoute({
 		] })]
 	})
 });
-var $$splitComponentImporter = () => import("./routes-C7djG2xn.mjs").then((n) => n.p);
+var $$splitComponentImporter = () => import("./routes-DVYFvhLo.mjs").then((n) => n.p);
 var Route$3 = createFileRoute("/")({ component: lazyRouteComponent($$splitComponentImporter, "component") });
 var GROK_MODELS = {
 	"grok-4.7-high": {
