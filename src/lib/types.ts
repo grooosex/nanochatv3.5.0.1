@@ -398,4 +398,6 @@ export interface AppDataDump {
   favGroups?: FavGroup[];
   history: HistoryItem[];
   hasImages: boolean;
+  wechatSessions?: Record<string, WechatSession>;
+  wechatStickers?: WechatSticker[];
 }

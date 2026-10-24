@@ -1,5 +1,5 @@
 import { unzipSync, zipSync, strToU8, strFromU8 } from "fflate";
-import type { AppDataDump, Chat, FavoriteItem, FavGroup, ImageParams } from "./types";
+import type { AppDataDump, Chat, FavoriteItem, FavGroup, ImageParams, WechatLine, WechatLog, WechatSession, WechatSticker } from "./types";
 import { migrateFavorite } from "./presets";
 import { db, putImage } from "./idb";
 import {
@@ -11,8 +11,56 @@ import {
 } from "./legacy-archive";
 import { downloadBlob, uid } from "./utils";
 
-export async function exportArchive(kind: "full" | "lite") {
-  const [chats, folders, cards, appearances, favorites, favGroups, history, settingsRow] = await Promise.all([
+function addId(ids: Set<string>, id: unknown) {
+  if (typeof id === "string" && id) ids.add(id);
+}
+
+function addLines(ids: Set<string>, lines?: WechatLine[], pending?: { blobId?: string }[]) {
+  for (const line of lines ?? []) {
+    for (const item of line.attachments ?? []) addId(ids, item.blobId);
+  }
+  for (const item of pending ?? []) addId(ids, item.blobId);
+}
+
+function addLog(ids: Set<string>, log?: WechatLog) {
+  if (!log) return;
+  addLines(ids, log.lines);
+  for (const room of Object.values(log.rooms ?? {})) addLines(ids, room.lines, room.pending);
+}
+
+function addSession(ids: Set<string>, session: WechatSession) {
+  addLines(ids, session.lines, session.pending);
+  for (const room of Object.values(session.rooms ?? {})) addLines(ids, room.lines, room.pending);
+}
+
+function keptImageIds(dump: AppDataDump) {
+  const ids = new Set<string>();
+  for (const sticker of dump.wechatStickers ?? []) addId(ids, sticker.blobId);
+  for (const fav of dump.favorites ?? []) addId(ids, fav.blobId);
+  for (const card of dump.cards ?? []) {
+    for (const c of card.characters ?? []) {
+      addId(ids, c.lookBlobId);
+      addId(ids, c.wechatAvatarBlobId);
+    }
+  }
+  for (const chat of dump.chats ?? []) {
+    addId(ids, chat.customAvatarBlobId);
+    for (const c of chat.characters ?? []) {
+      addId(ids, c.lookBlobId);
+      addId(ids, c.wechatAvatarBlobId);
+    }
+    for (const m of chat.messages ?? []) {
+      addId(ids, m.userImageBlobId);
+      for (const shot of m.userImages ?? []) addId(ids, shot.blobId);
+      addLog(ids, m.wechatLog);
+    }
+  }
+  for (const session of Object.values(dump.wechatSessions ?? {})) addSession(ids, session);
+  return ids;
+}
+
+export async function exportArchive(kind: "full" | "lite" | "partial") {
+  const [chats, folders, cards, appearances, favorites, favGroups, history, settingsRow, wechatRow, stickerRow] = await Promise.all([
     db.chats.toArray(),
     db.folders.toArray(),
     db.cards.toArray(),
@@ -21,6 +69,8 @@ export async function exportArchive(kind: "full" | "lite") {
     db.favGroups.toArray(),
     db.history.toArray(),
     db.kv.get("settings"),
+    db.kv.get("wechatSessions"),
+    db.kv.get("wechatStickers"),
   ]);
   const dump: AppDataDump = {
     version: 1,
@@ -61,7 +111,9 @@ export async function exportArchive(kind: "full" | "lite") {
     favorites,
     favGroups,
     history,
-    hasImages: kind === "full",
+    hasImages: kind !== "lite",
+    wechatSessions: (wechatRow?.value ?? {}) as AppDataDump["wechatSessions"],
+    wechatStickers: (Array.isArray(stickerRow?.value) ? stickerRow.value : []) as WechatSticker[],
   };
 
   if (kind === "lite") {
@@ -72,16 +124,24 @@ export async function exportArchive(kind: "full" | "lite") {
     return;
   }
 
-  const files: Record<string, Uint8Array> = {
-    "huiyu.json": strToU8(JSON.stringify(dump)),
-  };
+  const files: Record<string, Uint8Array> = {};
   const images = await db.images.toArray();
-  for (const img of images) {
-    const buf = new Uint8Array(await img.blob.arrayBuffer());
-    files[`images/${img.id}.png`] = buf;
+  if (kind === "partial") {
+    dump.history = (dump.history ?? []).map((h) => ({ ...h, blobId: undefined }));
+    const keep = keptImageIds(dump);
+    for (const img of images) {
+      if (!keep.has(img.id)) continue;
+      files[`images/${img.id}.png`] = new Uint8Array(await img.blob.arrayBuffer());
+    }
+  } else {
+    for (const img of images) {
+      files[`images/${img.id}.png`] = new Uint8Array(await img.blob.arrayBuffer());
+    }
   }
+  files["huiyu.json"] = strToU8(JSON.stringify(dump));
   const zipped = zipSync(files, { level: 1 });
-  downloadBlob(new Blob([zipped as BlobPart], { type: "application/zip" }), `绘语-全部-${new Date().toISOString().slice(0, 10)}.zip`);
+  const name = kind === "partial" ? "部分配图" : "全部";
+  downloadBlob(new Blob([zipped as BlobPart], { type: "application/zip" }), `绘语-${name}-${new Date().toISOString().slice(0, 10)}.zip`);
 }
 
 export async function importArchive(file: File) {
@@ -171,6 +231,12 @@ export async function importArchive(file: File) {
     await db.kv.put({ key: "settings", value: merged });
     if (currentId !== undefined) await db.kv.put({ key: "currentId", value: currentId });
     if (pureParams) await db.kv.put({ key: "pureParams", value: pureParams });
+    if (dump.wechatSessions && typeof dump.wechatSessions === "object") {
+      await db.kv.put({ key: "wechatSessions", value: dump.wechatSessions });
+    }
+    if (Array.isArray(dump.wechatStickers)) {
+      await db.kv.put({ key: "wechatStickers", value: dump.wechatStickers });
+    }
   });
   for (const [id, blob] of imageBlobs) await putImage(id, blob);
 }

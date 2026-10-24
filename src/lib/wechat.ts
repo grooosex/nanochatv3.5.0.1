@@ -315,7 +315,8 @@ export function wechatRounds(lines: WechatLine[]) {
   const rounds: WechatLine[][] = [];
   let cur: WechatLine[] = [];
   for (const line of lines) {
-    if (line.role === "user" && cur.length) {
+    const split = line.role === "user" && cur.length && (line.continued || cur.some((item) => item.role === "assistant"));
+    if (split) {
       rounds.push(cur);
       cur = [line];
     } else cur.push(line);
@@ -449,15 +450,35 @@ function transcript(session: WechatSession, withInner: boolean, names?: Record<s
     .join("\n\n");
 }
 
-function turnCue(turn: WechatLine, group: boolean, standing: ReturnType<typeof standingDirectives>) {
+function turnCue(turns: WechatLine[], group: boolean, standing: ReturnType<typeof standingDirectives>) {
+  const turn = turns[turns.length - 1];
+  if (!turn) return "";
   if (turn.continued) return "用户这一轮没有发新的消息。接着刚才的话题往下聊，不要把上一轮的气泡再发一遍。";
+  const texts = turns.map((item) => item.text.trim()).filter(Boolean);
+  const attachments = turns.flatMap((item) => item.attachments);
   return [
     group ? "这一轮用户刚发到群里的在下面。按微信回。" : "这一轮用户刚发来的在下面。按微信回。",
-    turn.text.trim() ? formatUserForChat(turn.text, standing) : "用户这一轮没有写字。",
-    userTurnCaption(turn.attachments, turn.text),
+    texts.length ? texts.map((text) => formatUserForChat(text, standing)).join("\n\n") : "用户这一轮没有写字。",
+    userTurnCaption(attachments, texts.join("\n")),
   ]
     .filter(Boolean)
     .join("\n\n");
+}
+
+async function pushTurnImages(parts: Part[], turns: WechatLine[]) {
+  const photos = turns.flatMap((item) => item.attachments.filter((a) => a.kind === "photo"));
+  let photoN = 0;
+  for (const photo of photos) {
+    photoN += 1;
+    const caption =
+      photos.length > 1
+        ? `下面这张是用户刚在微信里发来的第 ${photoN} 张照片，共 ${photos.length} 张。不是外貌备忘，也不是你眼前的实景。`
+        : "下面这张是用户刚在微信里发来的照片，不是外貌备忘，也不是你眼前的实景。";
+    await pushImage(parts, photo.blobId, caption);
+  }
+  for (const sticker of turns.flatMap((item) => item.attachments.filter((a) => a.kind === "sticker"))) {
+    await pushImage(parts, sticker.blobId, "下面这张是表情包，只取它的意思。");
+  }
 }
 
 async function pushImage(parts: Part[], blobId: string, caption: string) {
@@ -467,36 +488,23 @@ async function pushImage(parts: Part[], blobId: string, caption: string) {
   parts.push({ type: "image_url", image_url: { url } });
 }
 
-async function replyMessages(chat: Chat, session: WechatSession, stickers: WechatSticker[], turn: WechatLine) {
+async function replyMessages(chat: Chat, session: WechatSession, stickers: WechatSticker[], turns: WechatLine[]) {
   const standing = standingDirectives(chat);
+  const skip = new Set(turns.map((item) => item.id));
+  const view = { ...session, lines: session.lines.filter((line) => !skip.has(line.id)) };
   const head = [
     personaPack(chat, session.charId),
     mainRecent(chat),
-    transcript(session, true),
-    turnCue(turn, false, standing),
+    transcript(view, true),
+    turnCue(turns, false, standing),
   ]
     .filter(Boolean)
     .join("\n\n");
   const parts: Part[] = [{ type: "text", text: head }];
-  let photoN = 0;
-  const photos = turn.attachments.filter((a) => a.kind === "photo");
-  for (const photo of photos) {
-    photoN += 1;
-    const caption =
-      photos.length > 1
-        ? `下面这张是用户刚在微信里发来的第 ${photoN} 张照片，共 ${photos.length} 张。不是外貌备忘，也不是你眼前的实景。`
-        : "下面这张是用户刚在微信里发来的照片，不是外貌备忘，也不是你眼前的实景。";
-    await pushImage(parts, photo.blobId, caption);
-  }
-  for (const sticker of turn.attachments.filter((a) => a.kind === "sticker")) {
-    await pushImage(parts, sticker.blobId, "下面这张是表情包，只取它的意思。");
-  }
+  await pushTurnImages(parts, turns);
   const older: WechatAttach[] = [];
-  for (const round of modelRounds(session).pending) {
-    for (const line of round) {
-      if (line.id === turn.id) continue;
-      older.push(...line.attachments);
-    }
+  for (const round of modelRounds(view).pending) {
+    for (const line of round) older.push(...line.attachments);
   }
   const keep = older.filter((item) => item.kind === "photo").slice(-4);
   for (const item of keep) {
@@ -506,7 +514,7 @@ async function replyMessages(chat: Chat, session: WechatSession, stickers: Wecha
   return [{ role: "user" as const, content: parts }];
 }
 
-async function maybeFold(chatId: string) {
+async function maybeFold(chatId: string, signal?: AbortSignal) {
   const session = sessionOf(chatId);
   if (!session) return;
   const rounds = wechatRounds(session.lines);
@@ -524,17 +532,89 @@ async function maybeFold(chatId: string) {
       grokModelId: useApp.getState().chats.find((c) => c.id === chatId)?.grokModelId,
       messages: [{ role: "user", content: body }],
       max_tokens: 500,
-    });
+    }, signal);
+    if (signal?.aborted) return;
     const next = cleanSummary(text);
     if (!next) return;
     patchSession(chatId, (s) => ({ ...s, earlier: next, folded: rounds.length - 12 }));
-  } catch {
-    /* 摘要失败就继续带着原文 */
+  } catch (e) {
+    if (signal?.aborted) throw e;
   }
 }
 
 const busy = new Set<string>();
+const jobs = new Map<string, number>();
+const textStops = new Map<string, AbortController>();
 const imageStops = new Map<string, AbortController>();
+
+function takeJob(chatId: string) {
+  textStops.get(chatId)?.abort();
+  const signal = new AbortController();
+  textStops.set(chatId, signal);
+  const job = (jobs.get(chatId) ?? 0) + 1;
+  jobs.set(chatId, job);
+  busy.add(chatId);
+  return { job, signal: signal.signal };
+}
+
+function jobLive(chatId: string, job: number) {
+  return jobs.get(chatId) === job;
+}
+
+function isAbort(e: unknown) {
+  return (e instanceof DOMException || e instanceof Error) && (e.name === "AbortError" || e.message === "Aborted");
+}
+
+function dropDangling(lines: WechatLine[]) {
+  let end = lines.length;
+  while (end > 0 && lines[end - 1].continued) end -= 1;
+  return lines.slice(0, end);
+}
+
+function openUserTurns(lines: WechatLine[], turn: WechatLine) {
+  if (turn.continued) return [turn];
+  const idx = lines.findIndex((line) => line.id === turn.id);
+  if (idx < 0) return [turn];
+  let start = idx;
+  while (start > 0 && lines[start - 1].role === "user" && !lines[start - 1].continued) start -= 1;
+  return lines.slice(start, idx + 1);
+}
+
+function markerAfter(lines: WechatLine[], lineId: string) {
+  const at = lines.findIndex((line) => line.id === lineId);
+  if (at < 0) return -1;
+  for (let i = at + 1; i < lines.length; i++) if (lines[i].continued) return i;
+  return -1;
+}
+
+async function runJob(chatId: string, onTextReady: () => void, body: (signal: AbortSignal, job: number, ready: () => void) => Promise<void>) {
+  const { job, signal } = takeJob(chatId);
+  let ready = false;
+  try {
+    await body(signal, job, () => {
+      ready = true;
+      if (jobLive(chatId, job)) onTextReady();
+    });
+  } catch (e) {
+    if (!jobLive(chatId, job) || isAbort(e)) return;
+    useApp.getState().toast(e instanceof Error ? e.message : "没发出去");
+  } finally {
+    if (jobLive(chatId, job)) {
+      if (!ready) onTextReady();
+      busy.delete(chatId);
+      textStops.delete(chatId);
+    }
+  }
+}
+
+function cutAt(lines: WechatLine[], replaceFromId?: string) {
+  const base = replaceFromId ? lines : dropDangling(lines);
+  if (!replaceFromId) return base;
+  const idx = base.findIndex((line) => line.id === replaceFromId);
+  if (idx >= 0) return base.slice(0, idx);
+  const raw = lines.findIndex((line) => line.id === replaceFromId);
+  return raw < 0 ? null : lines.slice(0, raw);
+}
 
 function stopKey(chatId: string, lineId: string) {
   return `${chatId}:${lineId}`;
@@ -550,24 +630,27 @@ function clampFold(lines: WechatLine[], folded: number, earlier: string) {
   return { folded, earlier };
 }
 
-async function completeReply(chat: Chat, turn: WechatLine, armed: boolean, onTextReady: () => void) {
+async function completeReply(chat: Chat, turn: WechatLine, armed: boolean, onTextReady: () => void, signal: AbortSignal, job: number) {
   const chatId = chat.id;
   const stickers = useApp.getState().wechatStickers;
-  await maybeFold(chatId);
+  await maybeFold(chatId, signal);
+  if (!jobLive(chatId, job)) return;
   const live = sessionOf(chatId);
   if (!live) return;
   const settings = useApp.getState().settings;
   const inline = armed && !resolveImageWrite(settings.imageModelId).split;
+  const turns = openUserTurns(live.lines, turn);
   const prevScene = previousWechatPrompt(live, turn.id);
   const raw = await grokOnce({
     task: "wechat",
     extraSystem: [REPLY_SYSTEM, inline ? wechatImageTail(chat, prevScene) : ""].filter(Boolean).join("\n\n"),
     ...wechatPresetStyle(settings, chat, inline),
     grokModelId: chat.grokModelId,
-    messages: await replyMessages(chat, { ...live, lines: live.lines.filter((line) => line.id !== turn.id) }, stickers, turn),
+    messages: await replyMessages(chat, live, stickers, turns),
     max_tokens: inline ? 1800 : 800,
-  });
-  const allowLong = standingDirectives(chat).length > 0 || parseUserMarkup(turn.text).directives.length > 0;
+  }, signal);
+  if (!jobLive(chatId, job)) return;
+  const allowLong = standingDirectives(chat).length > 0 || turns.some((item) => parseUserMarkup(item.text).directives.length > 0);
   const split = splitChatPrompt(raw);
   const pack = packOf(stickers);
   const parsed = parseWechatReply(split.visible, pack.length, allowLong, Boolean(settings.stWechatActiveId));
@@ -605,6 +688,7 @@ async function completeReply(chat: Chat, turn: WechatLine, armed: boolean, onTex
     });
   }
   lines[lines.length - 1] = { ...lines[lines.length - 1], inner: parsed.inner };
+  if (!jobLive(chatId, job)) return;
   patchSession(chatId, (s) => ({ ...s, lines: [...s.lines, ...lines] }));
   onTextReady();
   if (armed) {
@@ -761,7 +845,7 @@ function parseGroupReply(raw: string, chat: Chat, stickerMax: number, allowLong:
   return { bubbles: capped.filter((b) => ok.has(b.id)), inners, stickers };
 }
 
-async function foldRoom(chat: Chat, key: string) {
+async function foldRoom(chat: Chat, key: string, signal?: AbortSignal) {
   const chatId = chat.id;
   const session = sessionOf(chatId);
   const room = session?.rooms?.[key];
@@ -781,7 +865,8 @@ async function foldRoom(chat: Chat, key: string) {
       grokModelId: chat.grokModelId,
       messages: [{ role: "user", content: body }],
       max_tokens: 400,
-    });
+    }, signal);
+    if (signal?.aborted) return;
     const summary = text.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
     if (!summary) return;
     patchSession(chatId, (s) => {
@@ -791,19 +876,21 @@ async function foldRoom(chat: Chat, key: string) {
       rooms[key] = { ...cur, earlier: summary, folded: folded + chunk.length };
       return { ...s, rooms };
     });
-  } catch {
-    /* 折不了就留着原文 */
+  } catch (e) {
+    if (signal?.aborted) throw e;
   }
 }
 
-async function multiMessages(chat: Chat, session: WechatSession, key: string, stickers: WechatSticker[], turn: WechatLine) {
+async function multiMessages(chat: Chat, session: WechatSession, key: string, stickers: WechatSticker[], turns: WechatLine[]) {
   const standing = standingDirectives(chat);
   const names = nameMap(chat);
   const rooms = session.rooms ?? {};
   const own = rooms[key] ?? emptyRoom();
-  const ownView = { ...session, lines: own.lines.filter((line) => line.id !== turn.id), earlier: own.earlier, folded: own.folded, rooms: undefined };
+  const skip = new Set(turns.map((item) => item.id));
+  const ownView = { ...session, lines: own.lines.filter((line) => !skip.has(line.id)), earlier: own.earlier, folded: own.folded, rooms: undefined };
+  const groupCue = key === WECHAT_GROUP;
   let head = "";
-  if (key === WECHAT_GROUP) {
+  if (groupCue) {
     const privates = chat.characters
       .map((c) => {
         const text = sideText(rooms[c.id] ?? emptyRoom());
@@ -821,7 +908,7 @@ async function multiMessages(chat: Chat, session: WechatSession, key: string, st
       mainRecent(chat),
       transcript(ownView, true, names),
       privates,
-      turnCue(turn, true, standing),
+      turnCue(turns, true, standing),
     ]
       .filter(Boolean)
       .join("\n\n");
@@ -832,39 +919,29 @@ async function multiMessages(chat: Chat, session: WechatSession, key: string, st
       mainRecent(chat),
       groupText ? `【群记录】\n${groupText}` : "",
       transcript(ownView, true),
-      turnCue(turn, false, standing),
+      turnCue(turns, false, standing),
     ]
       .filter(Boolean)
       .join("\n\n");
   }
   const parts: Part[] = [{ type: "text", text: head }];
-  let photoN = 0;
-  const photos = turn.attachments.filter((a) => a.kind === "photo");
-  for (const photo of photos) {
-    photoN += 1;
-    const caption =
-      photos.length > 1
-        ? `下面这张是用户刚在微信里发来的第 ${photoN} 张照片，共 ${photos.length} 张。不是外貌备忘，也不是你眼前的实景。`
-        : "下面这张是用户刚在微信里发来的照片，不是外貌备忘，也不是你眼前的实景。";
-    await pushImage(parts, photo.blobId, caption);
-  }
-  for (const sticker of turn.attachments.filter((a) => a.kind === "sticker")) {
-    await pushImage(parts, sticker.blobId, "下面这张是表情包，只取它的意思。");
-  }
+  await pushTurnImages(parts, turns);
   parts.push({ type: "text", text: stickerChoices(packOf(stickers)) });
   return [{ role: "user" as const, content: parts }];
 }
 
-async function completeMulti(chat: Chat, key: string, turn: WechatLine, armed: boolean, onTextReady: () => void) {
+async function completeMulti(chat: Chat, key: string, turn: WechatLine, armed: boolean, onTextReady: () => void, signal: AbortSignal, job: number) {
   const chatId = chat.id;
   const stickers = useApp.getState().wechatStickers;
-  await foldRoom(chat, key);
+  await foldRoom(chat, key, signal);
+  if (!jobLive(chatId, job)) return;
   const live = sessionOf(chatId);
   const room = live?.rooms?.[key];
   if (!live || !room) return;
   const settings = useApp.getState().settings;
   const inline = armed && !resolveImageWrite(settings.imageModelId).split;
   const group = key === WECHAT_GROUP;
+  const turns = openUserTurns(room.lines, turn);
   const prevScene = previousWechatPrompt({ ...live, lines: room.lines }, turn.id);
   const raw = await grokOnce({
     task: "wechat",
@@ -876,10 +953,11 @@ async function completeMulti(chat: Chat, key: string, turn: WechatLine, armed: b
       .join("\n\n"),
     ...wechatPresetStyle(settings, chat, inline, group),
     grokModelId: chat.grokModelId,
-    messages: await multiMessages(chat, { ...live, rooms: { ...live.rooms, [key]: room } }, key, stickers, turn),
+    messages: await multiMessages(chat, { ...live, rooms: { ...live.rooms, [key]: room } }, key, stickers, turns),
     max_tokens: group ? 1200 + Math.max(1, chat.characters.length) * 900 + (inline ? 600 : 0) : inline ? 2200 : 800,
-  });
-  const allowLong = standingDirectives(chat).length > 0 || parseUserMarkup(turn.text).directives.length > 0;
+  }, signal);
+  if (!jobLive(chatId, job)) return;
+  const allowLong = standingDirectives(chat).length > 0 || turns.some((item) => parseUserMarkup(item.text).directives.length > 0);
   const split = splitChatPrompt(raw);
   const pack = packOf(stickers);
   const lines: WechatLine[] = [];
@@ -951,6 +1029,7 @@ async function completeMulti(chat: Chat, key: string, turn: WechatLine, armed: b
       ],
     });
   }
+  if (!jobLive(chatId, job)) return;
   patchSession(chatId, (s) => {
     const rooms = { ...(s.rooms ?? {}) };
     const cur = rooms[key] ?? emptyRoom();
@@ -980,67 +1059,41 @@ async function withMultiRoom(chat: Chat) {
 }
 
 export async function sendWechat(chat: Chat, onTextReady: () => void, replaceFromId?: string) {
-  if (wechatIsMulti(chat)) {
-    const chatId = chat.id;
-    if (busy.has(chatId)) return;
-    const slot = await withMultiRoom(chat);
-    if (!slot) return;
-    const text = slot.room.draft.trim();
-    const pending = slot.room.pending;
-    if (!text && !pending.length) return;
-    const armed = sessionOf(chatId)?.armed === true;
-    let kept = slot.room.lines;
-    if (replaceFromId) {
-      const idx = slot.room.lines.findIndex((l) => l.id === replaceFromId);
-      if (idx < 0) return;
-      kept = slot.room.lines.slice(0, idx);
-    }
-    busy.add(chatId);
-    const turn: WechatLine = { id: uid("w_"), role: "user", text, attachments: pending };
-    const fold = clampFold(kept, slot.room.folded || 0, slot.room.earlier);
-    patchSession(chatId, (s) => {
-      const rooms = { ...(s.rooms ?? {}) };
-      rooms[slot.key] = { ...slot.room, ...fold, draft: "", pending: [], lines: [...kept, turn] };
-      return { ...s, rooms };
-    });
-    try {
-      await completeMulti(chat, slot.key, turn, armed, onTextReady);
-    } catch (e) {
-      onTextReady();
-      const err = e instanceof Error ? e.message : "没发出去";
-      if (err !== "Aborted") useApp.getState().toast(err);
-    } finally {
-      busy.delete(chatId);
-    }
-    return;
-  }
   const chatId = chat.id;
-  if (busy.has(chatId)) return;
-  const session = sessionOf(chatId);
-  if (!session) return;
-  const text = session.draft.trim();
-  const pending = session.pending;
-  if (!text && !pending.length) return;
-  const armed = session.armed;
-  let kept = session.lines;
-  if (replaceFromId) {
-    const idx = session.lines.findIndex((l) => l.id === replaceFromId);
-    if (idx < 0) return;
-    kept = session.lines.slice(0, idx);
-  }
-  busy.add(chatId);
-  const turn: WechatLine = { id: uid("w_"), role: "user", text, attachments: pending };
-  const fold = clampFold(kept, session.folded || 0, session.earlier);
-  patchSession(chatId, (s) => ({ ...s, ...fold, draft: "", pending: [], lines: [...kept, turn] }));
-  try {
-    await completeReply(chat, turn, armed, onTextReady);
-  } catch (e) {
-    onTextReady();
-    const err = e instanceof Error ? e.message : "没发出去";
-    if (err !== "Aborted") useApp.getState().toast(err);
-  } finally {
-    busy.delete(chatId);
-  }
+  await runJob(chatId, onTextReady, async (signal, job, ready) => {
+    if (wechatIsMulti(chat)) {
+      const slot = await withMultiRoom(chat);
+      if (!slot || !jobLive(chatId, job)) return;
+      const text = slot.room.draft.trim();
+      const pending = slot.room.pending;
+      if (!text && !pending.length) return;
+      const kept = cutAt(slot.room.lines, replaceFromId);
+      if (!kept) return;
+      const armed = sessionOf(chatId)?.armed === true;
+      const turn: WechatLine = { id: uid("w_"), role: "user", text, attachments: pending };
+      const fold = clampFold(kept, slot.room.folded || 0, slot.room.earlier);
+      if (!jobLive(chatId, job)) return;
+      patchSession(chatId, (s) => {
+        const rooms = { ...(s.rooms ?? {}) };
+        rooms[slot.key] = { ...slot.room, ...fold, draft: "", pending: [], lines: [...kept, turn] };
+        return { ...s, rooms };
+      });
+      await completeMulti(chat, slot.key, turn, armed, ready, signal, job);
+      return;
+    }
+    const session = sessionOf(chatId);
+    if (!session) return;
+    const text = session.draft.trim();
+    const pending = session.pending;
+    if (!text && !pending.length) return;
+    const kept = cutAt(session.lines, replaceFromId);
+    if (!kept) return;
+    const turn: WechatLine = { id: uid("w_"), role: "user", text, attachments: pending };
+    const fold = clampFold(kept, session.folded || 0, session.earlier);
+    if (!jobLive(chatId, job)) return;
+    patchSession(chatId, (s) => ({ ...s, ...fold, draft: "", pending: [], lines: [...kept, turn] }));
+    await completeReply(chat, turn, session.armed, ready, signal, job);
+  });
 }
 
 function canContinue(lines: WechatLine[]) {
@@ -1048,112 +1101,145 @@ function canContinue(lines: WechatLine[]) {
   return last?.role === "assistant";
 }
 
-export async function continueWechat(chat: Chat, onTextReady: () => void) {
-  if (wechatIsMulti(chat)) {
-    const chatId = chat.id;
-    if (busy.has(chatId)) return;
-    const slot = await withMultiRoom(chat);
-    if (!slot || !canContinue(slot.room.lines)) return;
-    const armed = sessionOf(chatId)?.armed === true;
-    busy.add(chatId);
-    const turn: WechatLine = { id: uid("w_"), role: "user", text: "", attachments: [], continued: true };
+function dropUnanswered(chatId: string, key: string | null, turnId: string) {
+  if (!jobLive(chatId, jobs.get(chatId) ?? -1)) return;
+  patchSession(chatId, (s) => {
+    if (key && s.rooms) {
+      const rooms = { ...s.rooms };
+      const cur = rooms[key];
+      if (!cur) return s;
+      const idx = cur.lines.findIndex((line) => line.id === turnId);
+      if (idx < 0 || cur.lines.slice(idx + 1).some((line) => line.role === "assistant")) return s;
+      rooms[key] = { ...cur, lines: cur.lines.filter((line) => line.id !== turnId) };
+      return { ...s, rooms };
+    }
+    const idx = s.lines.findIndex((line) => line.id === turnId);
+    if (idx < 0 || s.lines.slice(idx + 1).some((line) => line.role === "assistant")) return s;
+    return { ...s, lines: s.lines.filter((line) => line.id !== turnId) };
+  });
+}
+
+async function replyTail(chat: Chat, key: string | null, lines: WechatLine[], armed: boolean, ready: () => void, signal: AbortSignal, job: number) {
+  const chatId = chat.id;
+  const last = [...lines].reverse().find((line) => line.role === "user" && !line.continued);
+  if (!last) return;
+  if (key) await completeMulti(chat, key, last, armed, ready, signal, job);
+  else await completeReply(chat, last, armed, ready, signal, job);
+}
+
+async function startContinue(chat: Chat, key: string | null, lines: WechatLine[], armed: boolean, ready: () => void, signal: AbortSignal, job: number) {
+  const chatId = chat.id;
+  const turn: WechatLine = { id: uid("w_"), role: "user", text: "", attachments: [], continued: true };
+  if (!jobLive(chatId, job)) return;
+  if (key) {
     patchSession(chatId, (s) => {
       const rooms = { ...(s.rooms ?? {}) };
-      const cur = rooms[slot.key] ?? slot.room;
-      rooms[slot.key] = { ...cur, lines: [...cur.lines, turn] };
+      const cur = rooms[key];
+      if (!cur) return s;
+      rooms[key] = { ...cur, lines: [...lines, turn] };
       return { ...s, rooms };
     });
-    try {
-      await completeMulti(chat, slot.key, turn, armed, onTextReady);
-    } catch (e) {
-      patchSession(chatId, (s) => {
-        const rooms = { ...(s.rooms ?? {}) };
-        const cur = rooms[slot.key];
-        if (!cur) return s;
-        const idx = cur.lines.findIndex((line) => line.id === turn.id);
-        if (idx < 0 || cur.lines.slice(idx + 1).some((line) => line.role === "assistant")) return s;
-        rooms[slot.key] = { ...cur, lines: cur.lines.filter((line) => line.id !== turn.id) };
-        return { ...s, rooms };
-      });
-      onTextReady();
-      const err = e instanceof Error ? e.message : "没发出去";
-      if (err !== "Aborted") useApp.getState().toast(err);
-    } finally {
-      busy.delete(chatId);
-    }
-    return;
+  } else {
+    patchSession(chatId, (s) => ({ ...s, lines: [...lines, turn] }));
   }
-  const chatId = chat.id;
-  if (busy.has(chatId)) return;
-  const session = sessionOf(chatId);
-  if (!session || !canContinue(session.lines)) return;
-  busy.add(chatId);
-  const turn: WechatLine = { id: uid("w_"), role: "user", text: "", attachments: [], continued: true };
-  patchSession(chatId, (s) => ({ ...s, lines: [...s.lines, turn] }));
   try {
-    await completeReply(chat, turn, session.armed, onTextReady);
+    if (key) await completeMulti(chat, key, turn, armed, ready, signal, job);
+    else await completeReply(chat, turn, armed, ready, signal, job);
   } catch (e) {
-    patchSession(chatId, (s) => {
-      const idx = s.lines.findIndex((line) => line.id === turn.id);
-      if (idx < 0 || s.lines.slice(idx + 1).some((line) => line.role === "assistant")) return s;
-      return { ...s, lines: s.lines.filter((line) => line.id !== turn.id) };
-    });
-    onTextReady();
-    const err = e instanceof Error ? e.message : "没发出去";
-    if (err !== "Aborted") useApp.getState().toast(err);
-  } finally {
-    busy.delete(chatId);
+    if (jobLive(chatId, job)) dropUnanswered(chatId, key, turn.id);
+    throw e;
   }
 }
 
-export async function regenWechat(chat: Chat, lineId: string, onTextReady: () => void) {
-  if (wechatIsMulti(chat)) {
-    const chatId = chat.id;
-    if (busy.has(chatId)) return;
-    const slot = await withMultiRoom(chat);
-    if (!slot) return;
-    const idx = slot.room.lines.findIndex((l) => l.id === lineId);
-    const turn = slot.room.lines[idx];
-    if (!turn || turn.role !== "user") return;
-    const kept = slot.room.lines.slice(0, idx + 1);
-    const fold = clampFold(kept, slot.room.folded || 0, slot.room.earlier);
-    busy.add(chatId);
-    patchSession(chatId, (s) => {
-      const rooms = { ...(s.rooms ?? {}) };
-      rooms[slot.key] = { ...slot.room, ...fold, lines: kept };
-      return { ...s, rooms };
-    });
-    try {
-      await completeMulti(chat, slot.key, turn, sessionOf(chatId)?.armed === true, onTextReady);
-    } catch (e) {
-      onTextReady();
-      const err = e instanceof Error ? e.message : "没发出去";
-      if (err !== "Aborted") useApp.getState().toast(err);
-    } finally {
-      busy.delete(chatId);
-    }
-    return;
-  }
+export async function continueWechat(chat: Chat, onTextReady: () => void) {
   const chatId = chat.id;
-  if (busy.has(chatId)) return;
-  const session = sessionOf(chatId);
-  if (!session) return;
-  const idx = session.lines.findIndex((l) => l.id === lineId);
-  const turn = session.lines[idx];
-  if (!turn || turn.role !== "user") return;
-  const kept = session.lines.slice(0, idx + 1);
-  const fold = clampFold(kept, session.folded || 0, session.earlier);
-  busy.add(chatId);
-  patchSession(chatId, (s) => ({ ...s, ...fold, lines: kept }));
-  try {
-    await completeReply(chat, turn, session.armed, onTextReady);
-  } catch (e) {
-    onTextReady();
-    const err = e instanceof Error ? e.message : "没发出去";
-    if (err !== "Aborted") useApp.getState().toast(err);
-  } finally {
-    busy.delete(chatId);
-  }
+  await runJob(chatId, onTextReady, async (signal, job, ready) => {
+    if (wechatIsMulti(chat)) {
+      const slot = await withMultiRoom(chat);
+      if (!slot || !jobLive(chatId, job)) return;
+      const lines = dropDangling(slot.room.lines);
+      const armed = sessionOf(chatId)?.armed === true;
+      if (!canContinue(lines)) {
+        if (lines.length !== slot.room.lines.length) {
+          patchSession(chatId, (s) => {
+            const rooms = { ...(s.rooms ?? {}) };
+            const cur = rooms[slot.key];
+            if (!cur) return s;
+            rooms[slot.key] = { ...cur, lines };
+            return { ...s, rooms };
+          });
+        }
+        await replyTail(chat, slot.key, lines, armed, ready, signal, job);
+        return;
+      }
+      await startContinue(chat, slot.key, lines, armed, ready, signal, job);
+      return;
+    }
+    const session = sessionOf(chatId);
+    if (!session) return;
+    const lines = dropDangling(session.lines);
+    if (!canContinue(lines)) {
+      if (lines.length !== session.lines.length) patchSession(chatId, (s) => ({ ...s, lines }));
+      await replyTail(chat, null, lines, session.armed, ready, signal, job);
+      return;
+    }
+    await startContinue(chat, null, lines, session.armed, ready, signal, job);
+  });
+}
+
+export async function regenContinueFrom(chat: Chat, lineId: string, onTextReady: () => void) {
+  const chatId = chat.id;
+  await runJob(chatId, onTextReady, async (signal, job, ready) => {
+    if (wechatIsMulti(chat)) {
+      const slot = await withMultiRoom(chat);
+      if (!slot || !jobLive(chatId, job)) return;
+      const at = markerAfter(slot.room.lines, lineId);
+      if (at < 0) return;
+      const kept = slot.room.lines.slice(0, at);
+      if (!canContinue(kept)) return;
+      await startContinue(chat, slot.key, kept, sessionOf(chatId)?.armed === true, ready, signal, job);
+      return;
+    }
+    const session = sessionOf(chatId);
+    if (!session) return;
+    const at = markerAfter(session.lines, lineId);
+    if (at < 0) return;
+    const kept = session.lines.slice(0, at);
+    if (!canContinue(kept)) return;
+    await startContinue(chat, null, kept, session.armed, ready, signal, job);
+  });
+}
+
+export async function regenWechat(chat: Chat, lineId: string, onTextReady: () => void) {
+  const chatId = chat.id;
+  await runJob(chatId, onTextReady, async (signal, job, ready) => {
+    if (wechatIsMulti(chat)) {
+      const slot = await withMultiRoom(chat);
+      if (!slot || !jobLive(chatId, job)) return;
+      const idx = slot.room.lines.findIndex((l) => l.id === lineId);
+      const turn = slot.room.lines[idx];
+      if (!turn || turn.role !== "user") return;
+      const kept = slot.room.lines.slice(0, idx + 1);
+      const fold = clampFold(kept, slot.room.folded || 0, slot.room.earlier);
+      patchSession(chatId, (s) => {
+        const rooms = { ...(s.rooms ?? {}) };
+        rooms[slot.key] = { ...slot.room, ...fold, lines: kept };
+        return { ...s, rooms };
+      });
+      await completeMulti(chat, slot.key, turn, sessionOf(chatId)?.armed === true, ready, signal, job);
+      return;
+    }
+    const session = sessionOf(chatId);
+    if (!session) return;
+    const idx = session.lines.findIndex((l) => l.id === lineId);
+    const turn = session.lines[idx];
+    if (!turn || turn.role !== "user") return;
+    const kept = session.lines.slice(0, idx + 1);
+    const fold = clampFold(kept, session.folded || 0, session.earlier);
+    if (!jobLive(chatId, job)) return;
+    patchSession(chatId, (s) => ({ ...s, ...fold, lines: kept }));
+    await completeReply(chat, turn, session.armed, ready, signal, job);
+  });
 }
 
 function patchLine(chatId: string, lineId: string, fn: (line: WechatLine) => WechatLine) {

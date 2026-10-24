@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type PointerEvent as PE, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
-import { ArrowUp, Check, ChevronLeft, Download, Loader2, Maximize2, Minus, Minimize2, Pencil, Plus, RefreshCw, Smile, Sparkles, Trash2, Wand2, X } from "lucide-react";
+import { ArrowUp, Check, ChevronDown, ChevronLeft, ChevronRight, Download, Loader2, Maximize2, Minus, Minimize2, Pencil, Plus, RefreshCw, Smile, Sparkles, Trash2, Wand2, X } from "lucide-react";
 import { getImage, imageUrl } from "@/lib/idb";
 import { genPhaseLabel } from "@/lib/image-status";
 import { modelLabel, samplerLabel } from "@/lib/nai";
@@ -8,7 +8,7 @@ import { extractGrokTail } from "@/lib/nai-tags";
 import { compressRef, isImageFile } from "@/lib/ref-image";
 import { saveBlob, useApp } from "@/lib/store";
 import type { Chat, GenImage, WechatAttach, WechatLine, WechatLog, WechatSession, WechatSticker } from "@/lib/types";
-import { emptyWechatSession, ensureMultiSession, describeSticker, lineImages, paintWechat, queueStickerBrief, regenWechat, sendWechat, continueWechat, sessionHasLines, summarizeWechat, WECHAT_GROUP, wechatIsMulti, wechatTurnText, cancelWechatImage } from "@/lib/wechat";
+import { emptyWechatSession, ensureMultiSession, describeSticker, lineImages, paintWechat, queueStickerBrief, regenWechat, regenContinueFrom, sendWechat, continueWechat, sessionHasLines, summarizeWechat, WECHAT_GROUP, wechatIsMulti, wechatTurnText, cancelWechatImage } from "@/lib/wechat";
 import { autoScrollNearEdge, downloadBlob, indexFromY, moveId, nearestScroller, uid } from "@/lib/utils";
 import { ImagePick } from "./ImagePick";
 import { ChatAvatar, useCooldown } from "./ui-kit";
@@ -77,6 +77,7 @@ function WechatLive({ chat, session }: { chat: Chat; session: WechatSession }) {
   const [picked, setPicked] = useState<string | null>(null);
   const [book, setBook] = useState(false);
   const [editFrom, setEditFrom] = useState<string | null>(null);
+  const [editBackup, setEditBackup] = useState<{ room: string; draft: string; pending: WechatAttach[] } | null>(null);
 
   useEffect(() => {
     const el = scroller.current;
@@ -112,14 +113,34 @@ function WechatLive({ chat, session }: { chat: Chat; session: WechatSession }) {
   };
 
   const send = () => {
-    if (phase !== "idle") return;
+    if (phase === "sum") return;
     if (!draft.trim() && !pending.length) return;
     setPhase("type");
     setEmoji(false);
     const from = editFrom && lines.some((l) => l.id === editFrom) ? editFrom : undefined;
     setEditFrom(null);
+    setEditBackup(null);
     setPicked(null);
     void sendWechat(chat, () => setPhase("idle"), from);
+  };
+
+  const cancelEdit = () => {
+    if (editBackup) {
+      const back = editBackup;
+      if (!multi || back.room === active) patchView({ draft: back.draft, pending: back.pending });
+      else {
+        const cur = useApp.getState().wechatSessions[chat.id];
+        const room = cur?.rooms?.[back.room];
+        if (cur && room) {
+          useApp.getState().setWechatSession(chat.id, {
+            ...cur,
+            rooms: { ...cur.rooms, [back.room]: { ...room, draft: back.draft, pending: back.pending } },
+          });
+        }
+      }
+    }
+    setEditFrom(null);
+    setEditBackup(null);
   };
 
   const close = () => {
@@ -354,12 +375,19 @@ function WechatLive({ chat, session }: { chat: Chat; session: WechatSession }) {
               type="button"
               className="grid size-9 shrink-0 place-items-center rounded-md bg-[#95EC69] text-black disabled:opacity-40"
               aria-label="发送"
-              disabled={phase !== "idle" || (!draft.trim() && !pending.length)}
+              disabled={phase === "sum" || (!draft.trim() && !pending.length)}
               onClick={send}
             >
               <ArrowUp className="size-5" />
             </button>
           </div>
+          {editFrom ? (
+            <div className="flex justify-center pt-1">
+              <button type="button" className="text-[12px] text-neutral-500" onClick={cancelEdit}>
+                取消编辑
+              </button>
+            </div>
+          ) : null}
           {emoji ? (
             <EmojiPanel
               tab={tab}
@@ -400,22 +428,31 @@ function WechatLive({ chat, session }: { chat: Chat; session: WechatSession }) {
         picked={picked}
         onPick={(id) => setPicked((cur) => (cur === id ? null : id))}
         onRegen={(id) => {
+          cancelEdit();
           setPicked(null);
           setPhase("type");
           void regenWechat(chat, id, () => setPhase("idle"));
         }}
+        onRegenNode={(id) => {
+          cancelEdit();
+          setPicked(null);
+          setPhase("type");
+          void regenContinueFrom(chat, id, () => setPhase("idle"));
+        }}
         onEdit={(line) => {
-          patchView({ draft: line.text, pending: line.attachments });
+          setEditBackup((prev) => prev ?? { room: active, draft, pending: pending.map((item) => ({ ...item })) });
+          patchView({ draft: line.text, pending: line.attachments.map((item) => ({ ...item })) });
           setEditFrom(line.id);
           setPicked(null);
         }}
       />
-      {phase === "idle" && [...lines].reverse().find((line) => !line.continued)?.role === "assistant" ? (
+      {phase !== "sum" && ([...lines].reverse().find((line) => !line.continued)?.role === "assistant" || phase === "type") ? (
         <div className="flex justify-center py-2">
           <button
             type="button"
             className="rounded-full border border-neutral-300 bg-white px-5 py-1 text-[14px]"
             onClick={() => {
+              cancelEdit();
               setPhase("type");
               void continueWechat(chat, () => setPhase("idle"));
             }}
@@ -581,6 +618,7 @@ function Thread({
   picked,
   onPick,
   onRegen,
+  onRegenNode,
   onEdit,
   readOnly,
 }: {
@@ -596,9 +634,11 @@ function Thread({
   picked?: string | null;
   onPick?: (id: string) => void;
   onRegen?: (id: string) => void;
+  onRegenNode?: (id: string) => void;
   onEdit?: (line: WechatLine) => void;
   readOnly?: boolean;
 }) {
+  const nodes = continueNodeIds(lines);
   return (
     <div className="flex flex-col gap-2">
       {lines.map((line) =>
@@ -643,9 +683,17 @@ function Thread({
                 ))}
                 {lineImages(line).length ? <WechatShot chat={chat} lineId={line.id} images={lineImages(line)} readOnly={readOnly} /> : null}
                 {line.inner ? (
-                  <button type="button" className="text-[12px] text-neutral-500" onClick={() => toggleInner(line.id)}>
-                    {openInner[line.id] ? "收起内心" : "内心"}
-                  </button>
+                  <div className="flex items-center gap-1 text-[12px] leading-none text-neutral-500">
+                    <button type="button" className="flex items-center gap-0.5" onClick={() => toggleInner(line.id)}>
+                      {openInner[line.id] ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
+                      <span>{nodes.has(line.id) ? "内心(节点)" : "内心"}</span>
+                    </button>
+                    {nodes.has(line.id) && openInner[line.id] && onRegenNode ? (
+                      <button type="button" aria-label="重新生成" className="grid size-3 place-items-center" onClick={() => onRegenNode(line.id)}>
+                        <RefreshCw className="size-3" />
+                      </button>
+                    ) : null}
+                  </div>
                 ) : null}
                 {line.inner && openInner[line.id] ? (
                   <div className="max-w-[85%] whitespace-pre-wrap rounded-md bg-white/80 px-2 py-1 text-[12px] leading-relaxed text-neutral-700">
@@ -659,6 +707,22 @@ function Thread({
       )}
     </div>
   );
+}
+
+function continueNodeIds(lines: WechatLine[]) {
+  const ids = new Set<string>();
+  for (let i = 0; i < lines.length; i++) {
+    if (!lines[i].continued) continue;
+    if (!lines.slice(i + 1).some((line) => line.role === "assistant")) continue;
+    for (let j = i - 1; j >= 0; j--) {
+      if (lines[j].continued) break;
+      if (lines[j].role === "assistant" && lines[j].inner) {
+        ids.add(lines[j].id);
+        break;
+      }
+    }
+  }
+  return ids;
 }
 
 function speakerLabel(chat: Chat, speakerId: string | undefined, fallback: string, roomNames?: Record<string, string>) {

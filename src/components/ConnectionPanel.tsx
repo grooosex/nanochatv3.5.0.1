@@ -213,7 +213,7 @@ export function ConnectionPanel() {
         </PrimaryBtn>
       </SheetCard>
       <Modal open={dl} onClose={() => setDl(false)} title="下载存档">
-        <p className="mb-4 text-[13px] text-muted">全部含配图；无配图可再次点重生。</p>
+        <p className="mb-4 text-[13px] text-muted">全部含配图。部分配图留下你上传的头像、表情包、收藏和照片，不含生成图。无配图可再次点重生。</p>
         <div className="flex flex-col gap-2">
           <PrimaryBtn
             onClick={() => {
@@ -223,6 +223,14 @@ export function ConnectionPanel() {
           >
             全部
           </PrimaryBtn>
+          <GhostBtn
+            onClick={() => {
+              void exportArchive("partial");
+              setDl(false);
+            }}
+          >
+            部分配图
+          </GhostBtn>
           <GhostBtn
             onClick={() => {
               void exportArchive("lite");
