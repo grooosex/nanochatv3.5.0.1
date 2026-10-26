@@ -619,6 +619,7 @@ function AppearSelect({ className, onPick }: { className?: string; onPick: (a: A
       }}
       onDelete={(id) => useApp.getState().deleteAppearance(id)}
       onReorder={(ids) => useApp.getState().reorderAppearances(ids)}
+      onEdit={(id) => useApp.getState().setUI({ editAppearId: id })}
     />
   );
 }

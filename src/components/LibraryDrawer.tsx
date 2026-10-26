@@ -30,6 +30,7 @@ export function LibraryDrawer({
   onApply,
   onDelete,
   onReorder,
+  onEdit,
   label = "角色选择",
   className,
 }: {
@@ -37,6 +38,7 @@ export function LibraryDrawer({
   onApply: (id: string) => void;
   onDelete: (id: string) => void;
   onReorder: (ids: string[]) => void;
+  onEdit?: (id: string) => void;
   label?: string;
   className?: string;
 }) {
@@ -62,6 +64,10 @@ export function LibraryDrawer({
   const rafRef = useRef(0);
   const onReorderRef = useRef(onReorder);
   onReorderRef.current = onReorder;
+  const onEditRef = useRef(onEdit);
+  onEditRef.current = onEdit;
+  const lastTap = useRef<{ id: string; at: number } | null>(null);
+  const moved = useRef(false);
 
   const display = (liveIds ?? items.map((c) => c.id))
     .map((id) => items.find((c) => c.id === id))
@@ -234,6 +240,7 @@ export function LibraryDrawer({
 
   const onRowPointerDown = (e: PE<HTMLElement>, id: string) => {
     if (sortRef.current) return;
+    moved.current = false;
     if (items.length < 2) return;
     if ((e.target as HTMLElement).closest("[data-row-action]")) return;
     if (e.pointerType === "mouse" && e.button !== 0) return;
@@ -257,7 +264,28 @@ export function LibraryDrawer({
     if (sortRef.current) return;
     const p = press.current;
     if (!p) return;
-    if (Math.abs(e.clientY - p.y) + Math.abs(e.movementX) > 12) clearPress();
+    if (Math.abs(e.clientY - p.y) + Math.abs(e.movementX) > 12) {
+      moved.current = true;
+      clearPress();
+    }
+  };
+
+  const onRowPointerUp = (e: PE<HTMLElement>, id: string) => {
+    if (sortRef.current || moved.current) return;
+    if ((e.target as HTMLElement).closest("[data-row-action]")) return;
+    if (!onEditRef.current) return;
+    const now = Date.now();
+    const prev = lastTap.current;
+    if (prev && prev.id === id && now - prev.at < 450) {
+      lastTap.current = null;
+      window.clearTimeout(pressTimer.current);
+      press.current = null;
+      setHoldId(null);
+      onEditRef.current(id);
+      close();
+      return;
+    }
+    lastTap.current = { id, at: now };
   };
 
   const onGripDown = (e: PE<HTMLElement>, id: string) => {
@@ -325,7 +353,10 @@ export function LibraryDrawer({
                   style={{ touchAction: sortMode ? "pan-y" : "manipulation" }}
                   onPointerDown={(e) => onRowPointerDown(e, c.id)}
                   onPointerMove={onRowPointerMove}
-                  onPointerUp={clearPress}
+                  onPointerUp={(e) => {
+                    onRowPointerUp(e, c.id);
+                    clearPress();
+                  }}
                   onPointerCancel={clearPress}
                 >
                   <span className="min-w-0 flex-1 truncate text-[13px] leading-5">{c.name}</span>
@@ -370,8 +401,10 @@ export function LibraryDrawer({
                 </div>
               ))}
               {items.length === 0 && <div className="px-2.5 py-2 text-[12px] text-muted">还没有保存的项目</div>}
-              {items.length > 1 && !sortMode ? (
-                <p className="px-3 pb-1 pt-0.5 text-[9px] leading-4 text-muted">长按进入排序</p>
+              {items.length > 0 && !sortMode && (onEdit || items.length > 1) ? (
+                <p className="px-3 pb-1 pt-0.5 text-[9px] leading-4 text-muted">
+                  {onEdit && items.length > 1 ? "双击修改 · 长按排序" : onEdit ? "双击修改" : "长按进入排序"}
+                </p>
               ) : null}
             </div>
             {pendingDelete && !sortMode ? (

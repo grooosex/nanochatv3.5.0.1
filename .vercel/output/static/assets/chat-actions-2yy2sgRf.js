@@ -1,1 +1,0 @@
-import{f as e}from"./routes-xaAFs1no.js";export{e as sendOpening};

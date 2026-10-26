@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type PointerEvent as PE, type ReactNode } from "react";
-import { Bookmark, Check, ChevronLeft, Clock, Download, Eye, Folder, MoreHorizontal, Pencil, ScanSearch, SlidersHorizontal, Star, X } from "lucide-react";
+import { Bookmark, Check, ChevronLeft, Clock, Download, Eye, Folder, Loader2, MoreHorizontal, Pencil, ScanSearch, SlidersHorizontal, Star, X } from "lucide-react";
 import { parseNaiPng } from "@/lib/png-meta";
 import { buildNaiPayload, modelLabel, modelShort, samplerLabel, samplerShort } from "@/lib/nai";
 import { COOLDOWN_MS, NAI_MODELS, NOISE_SCHEDULES } from "@/lib/constants";
@@ -106,7 +106,7 @@ export function PurePane() {
           </div>
         ) : (
           <div className="grid h-full place-items-center px-8 text-center text-[13px] text-stage-muted">
-            还没有图。先去参数里写提示词，再点绘一张。
+            还没有图。先去参数里写提示词，再点绘图。
           </div>
         )}
       </div>
@@ -162,7 +162,7 @@ export function PurePane() {
             });
           }}
         >
-          {phase ? "取消" : "绘一张"}
+          {phase ? "取消" : "绘图"}
         </PrimaryBtn>
         <IconBtn
           className="text-on-stage"
@@ -182,7 +182,23 @@ export function PurePane() {
         </IconBtn>
       </div>
 
-      {sheet === "params" && <PureParamsSheet onClose={closeSheet} />}
+      {sheet === "params" && (
+        <PureParamsSheet
+          phase={phase}
+          left={left}
+          onDraw={() => {
+            if (phase) {
+              cancelPureDraw();
+              return;
+            }
+            void drawOne(setPhase, (id) => {
+              setPeekId(null);
+              setViewId(id);
+            });
+          }}
+          onClose={closeSheet}
+        />
+      )}
       {sheet === "fav" && (
         <FavSheet currentBlob={item?.blobId} previewId={peekId} onPreview={setPeekId} onClose={closeSheet} />
       )}
@@ -1321,16 +1337,33 @@ function HistCell({ item, active, onPreview }: { item: HistoryItem; active?: boo
   );
 }
 
-function PureParamsSheet({ onClose }: { onClose: () => void }) {
+function PureParamsSheet({
+  onClose,
+  phase,
+  left,
+  onDraw,
+}: {
+  onClose: () => void;
+  phase: "uploading" | "generating" | "receiving" | null;
+  left: number;
+  onDraw: () => void;
+}) {
   const params = useApp((s) => s.pureParams);
   const grok = useApp((s) => s.settings.grokModelId);
   const chat = fakePureChat(params, grok);
   return (
     <div className="absolute inset-0 z-30 flex flex-col bg-overlay/40">
       <div className="mt-10 flex min-h-0 flex-1 flex-col overflow-hidden rounded-t-[28px] bg-bg text-ink">
-        <div className="flex shrink-0 items-center justify-between px-4 py-3">
-          <div className="font-serif text-[18px]">参数设置</div>
-          <button onClick={onClose}>
+        <div className="relative flex h-12 shrink-0 items-center px-4">
+          <div className="font-serif text-[18px] leading-[26px]">参数设置</div>
+          <button
+            type="button"
+            className="absolute left-1/2 top-1/2 inline-flex h-[26px] min-w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-primary px-3 text-[15px] leading-none text-on-primary"
+            onClick={onDraw}
+          >
+            {phase ? <Loader2 className="size-3.5 animate-spin" /> : left > 0 ? `${left}s` : "绘图"}
+          </button>
+          <button className="ml-auto" onClick={onClose} aria-label="关闭">
             <X className="size-5" />
           </button>
         </div>

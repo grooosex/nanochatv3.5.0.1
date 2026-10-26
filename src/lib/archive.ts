@@ -38,6 +38,7 @@ function keptImageIds(dump: AppDataDump) {
   for (const sticker of dump.wechatStickers ?? []) addId(ids, sticker.blobId);
   for (const fav of dump.favorites ?? []) addId(ids, fav.blobId);
   for (const card of dump.cards ?? []) {
+    addId(ids, card.customAvatarBlobId);
     for (const c of card.characters ?? []) {
       addId(ids, c.lookBlobId);
       addId(ids, c.wechatAvatarBlobId);

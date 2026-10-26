@@ -427,10 +427,40 @@ async function grokPwaMiddleware(event, next) {
 	if ((event.req.method ?? "GET").toUpperCase() !== "GET") return next();
 	const path = event.url.pathname;
 	const urlWithQuery = path + event.url.search;
-	if (path === "/__grok/manifest.webmanifest" || path === "/__grok/manifest.json") return new Response(renderWebManifest(requestHost(event)), { headers: {
-		"content-type": "application/manifest+json; charset=utf-8",
-		"cache-control": "no-cache"
-	} });
+	if (path === "/__grok/manifest.webmanifest" || path === "/__grok/manifest.json") {
+		const manifest = JSON.parse(renderWebManifest(requestHost(event)));
+		const title = String(grokOgIdentity.site?.title ?? "").trim();
+		if (title) {
+			manifest.name = title;
+			manifest.short_name = title;
+		}
+		manifest.icons = [
+			{
+				src: "/icon-192.png",
+				sizes: "192x192",
+				type: "image/png",
+				purpose: "any"
+			},
+			{
+				src: "/icon-512.png",
+				sizes: "512x512",
+				type: "image/png",
+				purpose: "any"
+			},
+			{
+				src: "/apple-touch-icon.png",
+				sizes: "180x180",
+				type: "image/png",
+				purpose: "any"
+			}
+		];
+		manifest.theme_color = "#F3EEE6";
+		manifest.background_color = "#F4EFE6";
+		return new Response(JSON.stringify(manifest), { headers: {
+			"content-type": "application/manifest+json; charset=utf-8",
+			"cache-control": "no-cache"
+		} });
+	}
 	if (isInstallQuery(urlWithQuery) && isDocumentPath(path) && acceptsHtml(event.req.headers.get("accept"))) {
 		const html = renderInstallPageHtml(install_page_default, {
 			host: requestHost(event),

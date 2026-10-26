@@ -143,7 +143,9 @@ interface UI {
   creating: boolean;
   previewParams: boolean;
   saveCardOpen: boolean;
+  editCardId: string | null;
   saveAppearOpen: boolean;
+  editAppearId: string | null;
   appearTarget: "mid" | string | null;
   customPrompt: {
     chatId: string;
@@ -225,10 +227,12 @@ interface State {
   renameItem: (id: string, name: string) => void;
   reorder: (ids: string[]) => void;
   saveCard: (chat: Chat, name: string) => void;
+  updateCard: (card: CharacterCard) => void;
   applyCard: (chatId: string, card: CharacterCard, charIndex?: number) => void;
   deleteCard: (id: string) => void;
   reorderCards: (ids: string[]) => void;
   saveAppearance: (name: string, prompt: string) => void;
+  updateAppearance: (id: string, name: string, prompt: string) => void;
   applyAppearance: (chatId: string, preset: AppearancePreset, target: "mid" | string) => void;
   deleteAppearance: (id: string) => void;
   reorderAppearances: (ids: string[]) => void;
@@ -268,7 +272,9 @@ const ui0 = (): UI => ({
   creating: false,
   previewParams: false,
   saveCardOpen: false,
+  editCardId: null,
   saveAppearOpen: false,
+  editAppearId: null,
   appearTarget: null,
   customPrompt: null,
   confirm: null,
@@ -702,12 +708,32 @@ export const useApp = create<State>((set, get) => ({
       statusBar: chat.statusBar,
       characters: structuredClone(chat.characters),
       grokModelId: chat.grokModelId,
+      customAvatarBlobId: chat.customAvatarBlobId || undefined,
       createdAt: Date.now(),
       order: Date.now(),
     };
     void db.cards.put(card);
     set((s) => ({ cards: [...s.cards, card], ui: { ...s.ui, saveCardOpen: false } }));
     get().toast(`已保存角色卡「${name}」`);
+  },
+
+  updateCard: (card) => {
+    const prev = get().cards.find((c) => c.id === card.id);
+    if (!prev) {
+      get().toast("这张卡已经不在了");
+      return;
+    }
+    const next: CharacterCard = {
+      ...card,
+      id: prev.id,
+      name: card.name.trim() || prev.name,
+      createdAt: prev.createdAt,
+      order: prev.order,
+      customAvatarBlobId: card.customAvatarBlobId || undefined,
+    };
+    void db.cards.put(next);
+    set((s) => ({ cards: s.cards.map((c) => (c.id === next.id ? next : c)) }));
+    get().toast(`已保存角色卡「${next.name}」`);
   },
 
   applyCard: (chatId, card, charIndex) => {
@@ -735,6 +761,7 @@ export const useApp = create<State>((set, get) => ({
         statusBarOn: card.statusBarOn,
         statusBar: card.statusBar,
         grokModelId: card.grokModelId,
+        ...(card.customAvatarBlobId ? { customAvatarBlobId: card.customAvatarBlobId } : {}),
         characters,
         imageParams: syncCharsFromRole(c.imageParams, characters, card.isMulti),
         updatedAt: Date.now(),
@@ -768,6 +795,18 @@ export const useApp = create<State>((set, get) => ({
     void db.appearances.put(a);
     set((s) => ({ appearances: [...s.appearances, a], ui: { ...s.ui, saveAppearOpen: false } }));
     get().toast(`已保存角色「${name}」`);
+  },
+
+  updateAppearance: (id, name, prompt) => {
+    const prev = get().appearances.find((a) => a.id === id);
+    if (!prev) {
+      get().toast("这个角色已经不在了");
+      return;
+    }
+    const next: AppearancePreset = { ...prev, name: name.trim() || prev.name, prompt };
+    void db.appearances.put(next);
+    set((s) => ({ appearances: s.appearances.map((a) => (a.id === id ? next : a)) }));
+    get().toast(`已保存角色「${next.name}」`);
   },
 
   applyAppearance: (chatId, preset, target) => {
@@ -1204,7 +1243,7 @@ function blobInUse(s: State, blobId: string, skipFav?: string) {
   if (s.favorites.some((f) => f.params.img2imgBlobId === blobId)) return true;
   if (s.pureParams.img2imgBlobId === blobId) return true;
   if (s.history.some((h) => h.blobId === blobId)) return true;
-  if (s.cards.some((card) => card.characters.some((c) => c.lookBlobId === blobId || c.wechatAvatarBlobId === blobId))) return true;
+  if (s.cards.some((card) => card.customAvatarBlobId === blobId || card.characters.some((c) => c.lookBlobId === blobId || c.wechatAvatarBlobId === blobId))) return true;
   if (s.wechatStickers.some((st) => st.blobId === blobId)) return true;
   for (const c of s.chats) {
     if (c.avatarBlobId === blobId) return true;

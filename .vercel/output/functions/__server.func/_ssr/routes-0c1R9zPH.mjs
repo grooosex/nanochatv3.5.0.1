@@ -2,12 +2,12 @@ import { i as __toESM, n as __exportAll } from "../_runtime.mjs";
 import { d as require_react_dom, q as require_react, x as require_jsx_runtime } from "../_libs/@tanstack/react-router+[...].mjs";
 import { i as zipSync, n as strToU8, r as unzipSync, t as strFromU8 } from "../_libs/fflate.mjs";
 import { A as Eye, B as Bookmark, C as LoaderCircle, D as FolderPlus, E as Folder, F as ChevronUp, H as ArrowDown, I as ChevronRight, L as ChevronLeft, M as Download, N as Copy, O as FolderInput, P as Clock, R as ChevronDown, S as Lock, T as GitBranch, U as AlignJustify, V as ArrowUp, _ as Minus, a as Trash2, b as Menu, c as Sparkles, d as Settings, f as ScanSearch, g as Moon, h as Pencil, j as Ellipsis, k as FileUp, l as Smile, m as Plus, n as WandSparkles, o as Sun, p as RefreshCw, r as Upload, s as Star, t as X, u as SlidersHorizontal, v as Minimize2, w as Image, x as Maximize2, y as MessageCircle, z as Check } from "../_libs/lucide-react.mjs";
-import { A as NAI_MODELS, B as defaultPureParams, C as DEFAULT_STATUS_BAR, D as IMAGE_DRAW_TIMEOUT_MS, E as GROK_MODELS$1, F as SAMPLERS, G as normalizePureParams, H as joinPromptParts, I as SENSITIVE_PREFIX, K as shortModelLabel, L as UC, M as NOISE_SCHEDULES, N as PLACEHOLDERS, O as IMAGE_GEN_TIMEOUT_MS, P as RESOLUTIONS, R as UNCENSORED_TAG, S as DEFAULT_NAI_BASE, T as FURRY_TAG, U as mergeLlmParams, V as emptyCharacter, W as migrateGrokId, _ as wechatGroupCastFormat, a as IMAGE_SHOT_RULES, b as DEFAULT_GROK, c as fieldPolishHint, d as imageLengthRules, f as imageWriteMaxTokens, g as voicePolishExtra, h as splitChatPrompt, i as IMAGE_MULTI_RULES, j as NAI_POLL_MS, k as NAI_HOP_TIMEOUT_MS, l as groupFormatHint, m as roleSnapshot, n as FIELD_LABELS, o as chatContextBlock, p as multiInsertInstruction, q as __exportAll$1, r as IMAGE_BG_RULES, s as chatImageSystem, u as imageApplyRules, v as wechatImageTail, w as FULLBODY_TAG, x as DEFAULT_LLM_PARAMS, y as COOLDOWN_MS, z as defaultImageParams } from "./router-GvgQLFyn.mjs";
+import { A as NAI_MODELS, B as defaultPureParams, C as DEFAULT_STATUS_BAR, D as IMAGE_DRAW_TIMEOUT_MS, E as GROK_MODELS$1, F as SAMPLERS, G as normalizePureParams, H as joinPromptParts, I as SENSITIVE_PREFIX, K as shortModelLabel, L as UC, M as NOISE_SCHEDULES, N as PLACEHOLDERS, O as IMAGE_GEN_TIMEOUT_MS, P as RESOLUTIONS, R as UNCENSORED_TAG, S as DEFAULT_NAI_BASE, T as FURRY_TAG, U as mergeLlmParams, V as emptyCharacter, W as migrateGrokId, _ as wechatGroupCastFormat, a as IMAGE_SHOT_RULES, b as DEFAULT_GROK, c as fieldPolishHint, d as imageLengthRules, f as imageWriteMaxTokens, g as voicePolishExtra, h as splitChatPrompt, i as IMAGE_MULTI_RULES, j as NAI_POLL_MS, k as NAI_HOP_TIMEOUT_MS, l as groupFormatHint, m as roleSnapshot, n as FIELD_LABELS, o as chatContextBlock, p as multiInsertInstruction, q as __exportAll$1, r as IMAGE_BG_RULES, s as chatImageSystem, u as imageApplyRules, v as wechatImageTail, w as FULLBODY_TAG, x as DEFAULT_LLM_PARAMS, y as COOLDOWN_MS, z as defaultImageParams } from "./router-CCtQaUUZ.mjs";
 import { t as Dexie } from "../_libs/dexie.mjs";
 import { t as clsx } from "../_libs/clsx.mjs";
 import { t as twMerge } from "../_libs/tailwind-merge.mjs";
 import { t as create } from "../_libs/zustand.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/idb-BJWFUb7e.js
+//#region node_modules/.nitro/vite/services/ssr/assets/idb-W6IrfdzR.js
 function cn(...inputs) {
 	return twMerge(clsx(inputs));
 }
@@ -620,8 +620,8 @@ function cachedUrl(id) {
 	return id ? urlCache.get(id) ?? null : null;
 }
 //#endregion
-//#region node_modules/.nitro/vite/services/ssr/assets/routes-DVYFvhLo.js
-var routes_DVYFvhLo_exports = /* @__PURE__ */ __exportAll({
+//#region node_modules/.nitro/vite/services/ssr/assets/routes-0c1R9zPH.js
+var routes_0c1R9zPH_exports = /* @__PURE__ */ __exportAll({
 	a: () => cancelMemory,
 	c: () => regenMessage,
 	component: () => Home,
@@ -1139,8 +1139,50 @@ function convertLegacyArchive(raw) {
 		pureParams
 	};
 }
+function addId(ids, id) {
+	if (typeof id === "string" && id) ids.add(id);
+}
+function addLines(ids, lines, pending) {
+	for (const line of lines ?? []) for (const item of line.attachments ?? []) addId(ids, item.blobId);
+	for (const item of pending ?? []) addId(ids, item.blobId);
+}
+function addLog(ids, log) {
+	if (!log) return;
+	addLines(ids, log.lines);
+	for (const room of Object.values(log.rooms ?? {})) addLines(ids, room.lines, room.pending);
+}
+function addSession(ids, session) {
+	addLines(ids, session.lines, session.pending);
+	for (const room of Object.values(session.rooms ?? {})) addLines(ids, room.lines, room.pending);
+}
+function keptImageIds(dump) {
+	const ids = /* @__PURE__ */ new Set();
+	for (const sticker of dump.wechatStickers ?? []) addId(ids, sticker.blobId);
+	for (const fav of dump.favorites ?? []) addId(ids, fav.blobId);
+	for (const card of dump.cards ?? []) {
+		addId(ids, card.customAvatarBlobId);
+		for (const c of card.characters ?? []) {
+			addId(ids, c.lookBlobId);
+			addId(ids, c.wechatAvatarBlobId);
+		}
+	}
+	for (const chat of dump.chats ?? []) {
+		addId(ids, chat.customAvatarBlobId);
+		for (const c of chat.characters ?? []) {
+			addId(ids, c.lookBlobId);
+			addId(ids, c.wechatAvatarBlobId);
+		}
+		for (const m of chat.messages ?? []) {
+			addId(ids, m.userImageBlobId);
+			for (const shot of m.userImages ?? []) addId(ids, shot.blobId);
+			addLog(ids, m.wechatLog);
+		}
+	}
+	for (const session of Object.values(dump.wechatSessions ?? {})) addSession(ids, session);
+	return ids;
+}
 async function exportArchive(kind) {
-	const [chats, folders, cards, appearances, favorites, favGroups, history, settingsRow] = await Promise.all([
+	const [chats, folders, cards, appearances, favorites, favGroups, history, settingsRow, wechatRow, stickerRow] = await Promise.all([
 		db.chats.toArray(),
 		db.folders.toArray(),
 		db.cards.toArray(),
@@ -1148,7 +1190,9 @@ async function exportArchive(kind) {
 		db.favorites.toArray(),
 		db.favGroups.toArray(),
 		db.history.toArray(),
-		db.kv.get("settings")
+		db.kv.get("settings"),
+		db.kv.get("wechatSessions"),
+		db.kv.get("wechatStickers")
 	]);
 	const dump = {
 		version: 1,
@@ -1189,7 +1233,9 @@ async function exportArchive(kind) {
 		favorites,
 		favGroups,
 		history,
-		hasImages: kind === "full"
+		hasImages: kind !== "lite",
+		wechatSessions: wechatRow?.value ?? {},
+		wechatStickers: Array.isArray(stickerRow?.value) ? stickerRow.value : []
 	};
 	if (kind === "lite") {
 		dump.favorites = (dump.favorites ?? []).map((f) => ({
@@ -1203,14 +1249,23 @@ async function exportArchive(kind) {
 		downloadBlob(new Blob([JSON.stringify(dump)], { type: "application/json" }), `绘语-无配图-${(/* @__PURE__ */ new Date()).toISOString().slice(0, 10)}.json`);
 		return;
 	}
-	const files = { "huiyu.json": strToU8(JSON.stringify(dump)) };
+	const files = {};
 	const images = await db.images.toArray();
-	for (const img of images) {
-		const buf = new Uint8Array(await img.blob.arrayBuffer());
-		files[`images/${img.id}.png`] = buf;
-	}
+	if (kind === "partial") {
+		dump.history = (dump.history ?? []).map((h) => ({
+			...h,
+			blobId: void 0
+		}));
+		const keep = keptImageIds(dump);
+		for (const img of images) {
+			if (!keep.has(img.id)) continue;
+			files[`images/${img.id}.png`] = new Uint8Array(await img.blob.arrayBuffer());
+		}
+	} else for (const img of images) files[`images/${img.id}.png`] = new Uint8Array(await img.blob.arrayBuffer());
+	files["huiyu.json"] = strToU8(JSON.stringify(dump));
 	const zipped = zipSync(files, { level: 1 });
-	downloadBlob(new Blob([zipped], { type: "application/zip" }), `绘语-全部-${(/* @__PURE__ */ new Date()).toISOString().slice(0, 10)}.zip`);
+	const name = kind === "partial" ? "部分配图" : "全部";
+	downloadBlob(new Blob([zipped], { type: "application/zip" }), `绘语-${name}-${(/* @__PURE__ */ new Date()).toISOString().slice(0, 10)}.zip`);
 }
 async function importArchive(file) {
 	const name = file.name.toLowerCase();
@@ -1303,6 +1358,14 @@ async function importArchive(file) {
 		if (pureParams) await db.kv.put({
 			key: "pureParams",
 			value: pureParams
+		});
+		if (dump.wechatSessions && typeof dump.wechatSessions === "object") await db.kv.put({
+			key: "wechatSessions",
+			value: dump.wechatSessions
+		});
+		if (Array.isArray(dump.wechatStickers)) await db.kv.put({
+			key: "wechatStickers",
+			value: dump.wechatStickers
 		});
 	});
 	for (const [id, blob] of imageBlobs) await putImage(id, blob);
@@ -1947,12 +2010,12 @@ function settleStuckImages(chat) {
 		messages
 	} : chat;
 }
-function isAbort(e) {
+function isAbort$1(e) {
 	return (e instanceof DOMException || e instanceof Error) && e.name === "AbortError";
 }
 function imageFailText(e, signal) {
 	if (signal?.aborted) return "已取消";
-	if (isAbort(e)) return "生图超时";
+	if (isAbort$1(e)) return "生图超时";
 	return e instanceof Error ? e.message : "生图失败";
 }
 function prettyImageError(error) {
@@ -2082,7 +2145,9 @@ var ui0 = () => ({
 	creating: false,
 	previewParams: false,
 	saveCardOpen: false,
+	editCardId: null,
 	saveAppearOpen: false,
+	editAppearId: null,
 	appearTarget: null,
 	customPrompt: null,
 	confirm: null,
@@ -2633,6 +2698,7 @@ var useApp = create((set, get) => ({
 			statusBar: chat.statusBar,
 			characters: structuredClone(chat.characters),
 			grokModelId: chat.grokModelId,
+			customAvatarBlobId: chat.customAvatarBlobId || void 0,
 			createdAt: Date.now(),
 			order: Date.now()
 		};
@@ -2645,6 +2711,24 @@ var useApp = create((set, get) => ({
 			}
 		}));
 		get().toast(`已保存角色卡「${name}」`);
+	},
+	updateCard: (card) => {
+		const prev = get().cards.find((c) => c.id === card.id);
+		if (!prev) {
+			get().toast("这张卡已经不在了");
+			return;
+		}
+		const next = {
+			...card,
+			id: prev.id,
+			name: card.name.trim() || prev.name,
+			createdAt: prev.createdAt,
+			order: prev.order,
+			customAvatarBlobId: card.customAvatarBlobId || void 0
+		};
+		db.cards.put(next);
+		set((s) => ({ cards: s.cards.map((c) => c.id === next.id ? next : c) }));
+		get().toast(`已保存角色卡「${next.name}」`);
 	},
 	applyCard: (chatId, card, charIndex) => {
 		get().patchChat(chatId, (c) => {
@@ -2668,6 +2752,7 @@ var useApp = create((set, get) => ({
 				statusBarOn: card.statusBarOn,
 				statusBar: card.statusBar,
 				grokModelId: card.grokModelId,
+				...card.customAvatarBlobId ? { customAvatarBlobId: card.customAvatarBlobId } : {},
 				characters,
 				imageParams: syncCharsFromRole(c.imageParams, characters, card.isMulti),
 				updatedAt: Date.now()
@@ -2712,6 +2797,21 @@ var useApp = create((set, get) => ({
 			}
 		}));
 		get().toast(`已保存角色「${name}」`);
+	},
+	updateAppearance: (id, name, prompt) => {
+		const prev = get().appearances.find((a) => a.id === id);
+		if (!prev) {
+			get().toast("这个角色已经不在了");
+			return;
+		}
+		const next = {
+			...prev,
+			name: name.trim() || prev.name,
+			prompt
+		};
+		db.appearances.put(next);
+		set((s) => ({ appearances: s.appearances.map((a) => a.id === id ? next : a) }));
+		get().toast(`已保存角色「${next.name}」`);
 	},
 	applyAppearance: (chatId, preset, target) => {
 		if (chatId === "__pure__") {
@@ -3158,7 +3258,7 @@ function blobInUse(s, blobId, skipFav) {
 	if (s.favorites.some((f) => f.params.img2imgBlobId === blobId)) return true;
 	if (s.pureParams.img2imgBlobId === blobId) return true;
 	if (s.history.some((h) => h.blobId === blobId)) return true;
-	if (s.cards.some((card) => card.characters.some((c) => c.lookBlobId === blobId || c.wechatAvatarBlobId === blobId))) return true;
+	if (s.cards.some((card) => card.customAvatarBlobId === blobId || card.characters.some((c) => c.lookBlobId === blobId || c.wechatAvatarBlobId === blobId))) return true;
 	if (s.wechatStickers.some((st) => st.blobId === blobId)) return true;
 	for (const c of s.chats) {
 		if (c.avatarBlobId === blobId) return true;
@@ -4911,7 +5011,7 @@ function mainLatest(chat) {
 function wechatRounds(lines) {
 	const rounds = [];
 	let cur = [];
-	for (const line of lines) if (line.role === "user" && cur.length) {
+	for (const line of lines) if (line.role === "user" && cur.length && (line.continued || cur.some((item) => item.role === "assistant"))) {
 		rounds.push(cur);
 		cur = [line];
 	} else cur.push(line);
@@ -5038,13 +5138,27 @@ function transcript(session, withInner, names) {
 	const recent = pending.flat().map((line) => lineText(line, withInner, names)).filter(Boolean).join("\n");
 	return [session.earlier.trim() ? `更早的微信摘要：\n${session.earlier.trim()}` : "", recent ? `微信记录，以最后一轮为重：\n${recent}` : ""].filter(Boolean).join("\n\n");
 }
-function turnCue(turn, group, standing) {
+function turnCue(turns, group, standing) {
+	const turn = turns[turns.length - 1];
+	if (!turn) return "";
 	if (turn.continued) return "用户这一轮没有发新的消息。接着刚才的话题往下聊，不要把上一轮的气泡再发一遍。";
+	const texts = turns.map((item) => item.text.trim()).filter(Boolean);
+	const attachments = turns.flatMap((item) => item.attachments);
 	return [
 		group ? "这一轮用户刚发到群里的在下面。按微信回。" : "这一轮用户刚发来的在下面。按微信回。",
-		turn.text.trim() ? formatUserForChat(turn.text, standing) : "用户这一轮没有写字。",
-		userTurnCaption(turn.attachments, turn.text)
+		texts.length ? texts.map((text) => formatUserForChat(text, standing)).join("\n\n") : "用户这一轮没有写字。",
+		userTurnCaption(attachments, texts.join("\n"))
 	].filter(Boolean).join("\n\n");
+}
+async function pushTurnImages(parts, turns) {
+	const photos = turns.flatMap((item) => item.attachments.filter((a) => a.kind === "photo"));
+	let photoN = 0;
+	for (const photo of photos) {
+		photoN += 1;
+		const caption = photos.length > 1 ? `下面这张是用户刚在微信里发来的第 ${photoN} 张照片，共 ${photos.length} 张。不是外貌备忘，也不是你眼前的实景。` : "下面这张是用户刚在微信里发来的照片，不是外貌备忘，也不是你眼前的实景。";
+		await pushImage(parts, photo.blobId, caption);
+	}
+	for (const sticker of turns.flatMap((item) => item.attachments.filter((a) => a.kind === "sticker"))) await pushImage(parts, sticker.blobId, "下面这张是表情包，只取它的意思。");
 }
 async function pushImage(parts, blobId, caption) {
 	const url = await blobDataUrl(blobId);
@@ -5058,30 +5172,25 @@ async function pushImage(parts, blobId, caption) {
 		image_url: { url }
 	});
 }
-async function replyMessages(chat, session, stickers, turn) {
+async function replyMessages(chat, session, stickers, turns) {
 	const standing = standingDirectives(chat);
+	const skip = new Set(turns.map((item) => item.id));
+	const view = {
+		...session,
+		lines: session.lines.filter((line) => !skip.has(line.id))
+	};
 	const parts = [{
 		type: "text",
 		text: [
 			personaPack(chat, session.charId),
 			mainRecent(chat),
-			transcript(session, true),
-			turnCue(turn, false, standing)
+			transcript(view, true),
+			turnCue(turns, false, standing)
 		].filter(Boolean).join("\n\n")
 	}];
-	let photoN = 0;
-	const photos = turn.attachments.filter((a) => a.kind === "photo");
-	for (const photo of photos) {
-		photoN += 1;
-		const caption = photos.length > 1 ? `下面这张是用户刚在微信里发来的第 ${photoN} 张照片，共 ${photos.length} 张。不是外貌备忘，也不是你眼前的实景。` : "下面这张是用户刚在微信里发来的照片，不是外貌备忘，也不是你眼前的实景。";
-		await pushImage(parts, photo.blobId, caption);
-	}
-	for (const sticker of turn.attachments.filter((a) => a.kind === "sticker")) await pushImage(parts, sticker.blobId, "下面这张是表情包，只取它的意思。");
+	await pushTurnImages(parts, turns);
 	const older = [];
-	for (const round of modelRounds(session).pending) for (const line of round) {
-		if (line.id === turn.id) continue;
-		older.push(...line.attachments);
-	}
+	for (const round of modelRounds(view).pending) for (const line of round) older.push(...line.attachments);
 	const keep = older.filter((item) => item.kind === "photo").slice(-4);
 	for (const item of keep) await pushImage(parts, item.blobId, "下面这张是前面微信里发过的照片，不是这一拍新发的，也不是你眼前的实景。");
 	parts.push({
@@ -5093,7 +5202,7 @@ async function replyMessages(chat, session, stickers, turn) {
 		content: parts
 	}];
 }
-async function maybeFold(chatId) {
+async function maybeFold(chatId, signal) {
 	const session = sessionOf(chatId);
 	if (!session) return;
 	const rounds = wechatRounds(session.lines);
@@ -5105,7 +5214,7 @@ async function maybeFold(chatId) {
 	const body = [session.earlier.trim(), ...chunk.flat().map((line) => lineText(line, true))].filter(Boolean).join("\n");
 	if (!body.trim()) return;
 	try {
-		const next = cleanSummary(await grokOnce({
+		const text = await grokOnce({
 			task: "wechat",
 			extraSystem: FOLD_SYSTEM,
 			grokModelId: useApp.getState().chats.find((c) => c.id === chatId)?.grokModelId,
@@ -5114,17 +5223,87 @@ async function maybeFold(chatId) {
 				content: body
 			}],
 			max_tokens: 500
-		}));
+		}, signal);
+		if (signal?.aborted) return;
+		const next = cleanSummary(text);
 		if (!next) return;
 		patchSession(chatId, (s) => ({
 			...s,
 			earlier: next,
 			folded: rounds.length - 12
 		}));
-	} catch {}
+	} catch (e) {
+		if (signal?.aborted) throw e;
+	}
 }
 var busy$1 = /* @__PURE__ */ new Set();
+var jobs = /* @__PURE__ */ new Map();
+var textStops = /* @__PURE__ */ new Map();
 var imageStops = /* @__PURE__ */ new Map();
+function takeJob(chatId) {
+	textStops.get(chatId)?.abort();
+	const signal = new AbortController();
+	textStops.set(chatId, signal);
+	const job = (jobs.get(chatId) ?? 0) + 1;
+	jobs.set(chatId, job);
+	busy$1.add(chatId);
+	return {
+		job,
+		signal: signal.signal
+	};
+}
+function jobLive(chatId, job) {
+	return jobs.get(chatId) === job;
+}
+function isAbort(e) {
+	return (e instanceof DOMException || e instanceof Error) && (e.name === "AbortError" || e.message === "Aborted");
+}
+function dropDangling(lines) {
+	let end = lines.length;
+	while (end > 0 && lines[end - 1].continued) end -= 1;
+	return lines.slice(0, end);
+}
+function openUserTurns(lines, turn) {
+	if (turn.continued) return [turn];
+	const idx = lines.findIndex((line) => line.id === turn.id);
+	if (idx < 0) return [turn];
+	let start = idx;
+	while (start > 0 && lines[start - 1].role === "user" && !lines[start - 1].continued) start -= 1;
+	return lines.slice(start, idx + 1);
+}
+function markerAfter(lines, lineId) {
+	const at = lines.findIndex((line) => line.id === lineId);
+	if (at < 0) return -1;
+	for (let i = at + 1; i < lines.length; i++) if (lines[i].continued) return i;
+	return -1;
+}
+async function runJob(chatId, onTextReady, body) {
+	const { job, signal } = takeJob(chatId);
+	let ready = false;
+	try {
+		await body(signal, job, () => {
+			ready = true;
+			if (jobLive(chatId, job)) onTextReady();
+		});
+	} catch (e) {
+		if (!jobLive(chatId, job) || isAbort(e)) return;
+		useApp.getState().toast(e instanceof Error ? e.message : "没发出去");
+	} finally {
+		if (jobLive(chatId, job)) {
+			if (!ready) onTextReady();
+			busy$1.delete(chatId);
+			textStops.delete(chatId);
+		}
+	}
+}
+function cutAt(lines, replaceFromId) {
+	const base = replaceFromId ? lines : dropDangling(lines);
+	if (!replaceFromId) return base;
+	const idx = base.findIndex((line) => line.id === replaceFromId);
+	if (idx >= 0) return base.slice(0, idx);
+	const raw = lines.findIndex((line) => line.id === replaceFromId);
+	return raw < 0 ? null : lines.slice(0, raw);
+}
 function stopKey(chatId, lineId) {
 	return `${chatId}:${lineId}`;
 }
@@ -5141,27 +5320,27 @@ function clampFold(lines, folded, earlier) {
 		earlier
 	};
 }
-async function completeReply(chat, turn, armed, onTextReady) {
+async function completeReply(chat, turn, armed, onTextReady, signal, job) {
 	const chatId = chat.id;
 	const stickers = useApp.getState().wechatStickers;
-	await maybeFold(chatId);
+	await maybeFold(chatId, signal);
+	if (!jobLive(chatId, job)) return;
 	const live = sessionOf(chatId);
 	if (!live) return;
 	const settings = useApp.getState().settings;
 	const inline = armed && !resolveImageWrite(settings.imageModelId).split;
+	const turns = openUserTurns(live.lines, turn);
 	const prevScene = previousWechatPrompt(live, turn.id);
 	const raw = await grokOnce({
 		task: "wechat",
 		extraSystem: [REPLY_SYSTEM, inline ? wechatImageTail(chat, prevScene) : ""].filter(Boolean).join("\n\n"),
 		...wechatPresetStyle(settings, chat, inline),
 		grokModelId: chat.grokModelId,
-		messages: await replyMessages(chat, {
-			...live,
-			lines: live.lines.filter((line) => line.id !== turn.id)
-		}, stickers, turn),
+		messages: await replyMessages(chat, live, stickers, turns),
 		max_tokens: inline ? 1800 : 800
-	});
-	const allowLong = standingDirectives(chat).length > 0 || parseUserMarkup(turn.text).directives.length > 0;
+	}, signal);
+	if (!jobLive(chatId, job)) return;
+	const allowLong = standingDirectives(chat).length > 0 || turns.some((item) => parseUserMarkup(item.text).directives.length > 0);
 	const split = splitChatPrompt(raw);
 	const pack = packOf(stickers);
 	const parsed = parseWechatReply(split.visible, pack.length, allowLong, Boolean(settings.stWechatActiveId));
@@ -5208,6 +5387,7 @@ async function completeReply(chat, turn, armed, onTextReady) {
 		...lines[lines.length - 1],
 		inner: parsed.inner
 	};
+	if (!jobLive(chatId, job)) return;
 	patchSession(chatId, (s) => ({
 		...s,
 		lines: [...s.lines, ...lines]
@@ -5340,7 +5520,7 @@ function parseGroupReply(raw, chat, stickerMax, allowLong) {
 		stickers
 	};
 }
-async function foldRoom(chat, key) {
+async function foldRoom(chat, key, signal) {
 	const chatId = chat.id;
 	const session = sessionOf(chatId);
 	const room = session?.rooms?.[key];
@@ -5354,7 +5534,7 @@ async function foldRoom(chat, key) {
 	const body = [room.earlier.trim(), ...chunk.flat().map((line) => lineText(line, true, nameMap(chat)))].filter(Boolean).join("\n");
 	if (!body.trim()) return;
 	try {
-		const summary = (await grokOnce({
+		const text = await grokOnce({
 			task: "wechat",
 			extraSystem: FOLD_SYSTEM,
 			grokModelId: chat.grokModelId,
@@ -5363,7 +5543,9 @@ async function foldRoom(chat, key) {
 				content: body
 			}],
 			max_tokens: 400
-		})).replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+		}, signal);
+		if (signal?.aborted) return;
+		const summary = text.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
 		if (!summary) return;
 		patchSession(chatId, (s) => {
 			const rooms = { ...s.rooms ?? {} };
@@ -5379,22 +5561,26 @@ async function foldRoom(chat, key) {
 				rooms
 			};
 		});
-	} catch {}
+	} catch (e) {
+		if (signal?.aborted) throw e;
+	}
 }
-async function multiMessages(chat, session, key, stickers, turn) {
+async function multiMessages(chat, session, key, stickers, turns) {
 	const standing = standingDirectives(chat);
 	const names = nameMap(chat);
 	const rooms = session.rooms ?? {};
 	const own = rooms[key] ?? emptyRoom();
+	const skip = new Set(turns.map((item) => item.id));
 	const ownView = {
 		...session,
-		lines: own.lines.filter((line) => line.id !== turn.id),
+		lines: own.lines.filter((line) => !skip.has(line.id)),
 		earlier: own.earlier,
 		folded: own.folded,
 		rooms: void 0
 	};
+	const groupCue = key === WECHAT_GROUP;
 	let head = "";
-	if (key === "group") {
+	if (groupCue) {
 		const privates = chat.characters.map((c) => {
 			const text = sideText(rooms[c.id] ?? emptyRoom());
 			const name = c.name.trim() || "她";
@@ -5407,7 +5593,7 @@ async function multiMessages(chat, session, key, stickers, turn) {
 			mainRecent(chat),
 			transcript(ownView, true, names),
 			privates,
-			turnCue(turn, true, standing)
+			turnCue(turns, true, standing)
 		].filter(Boolean).join("\n\n");
 	} else {
 		const groupText = sideText(rooms["group"] ?? emptyRoom(), names);
@@ -5416,21 +5602,14 @@ async function multiMessages(chat, session, key, stickers, turn) {
 			mainRecent(chat),
 			groupText ? `【群记录】\n${groupText}` : "",
 			transcript(ownView, true),
-			turnCue(turn, false, standing)
+			turnCue(turns, false, standing)
 		].filter(Boolean).join("\n\n");
 	}
 	const parts = [{
 		type: "text",
 		text: head
 	}];
-	let photoN = 0;
-	const photos = turn.attachments.filter((a) => a.kind === "photo");
-	for (const photo of photos) {
-		photoN += 1;
-		const caption = photos.length > 1 ? `下面这张是用户刚在微信里发来的第 ${photoN} 张照片，共 ${photos.length} 张。不是外貌备忘，也不是你眼前的实景。` : "下面这张是用户刚在微信里发来的照片，不是外貌备忘，也不是你眼前的实景。";
-		await pushImage(parts, photo.blobId, caption);
-	}
-	for (const sticker of turn.attachments.filter((a) => a.kind === "sticker")) await pushImage(parts, sticker.blobId, "下面这张是表情包，只取它的意思。");
+	await pushTurnImages(parts, turns);
 	parts.push({
 		type: "text",
 		text: stickerChoices(packOf(stickers))
@@ -5440,16 +5619,18 @@ async function multiMessages(chat, session, key, stickers, turn) {
 		content: parts
 	}];
 }
-async function completeMulti(chat, key, turn, armed, onTextReady) {
+async function completeMulti(chat, key, turn, armed, onTextReady, signal, job) {
 	const chatId = chat.id;
 	const stickers = useApp.getState().wechatStickers;
-	await foldRoom(chat, key);
+	await foldRoom(chat, key, signal);
+	if (!jobLive(chatId, job)) return;
 	const live = sessionOf(chatId);
 	const room = live?.rooms?.[key];
 	if (!live || !room) return;
 	const settings = useApp.getState().settings;
 	const inline = armed && !resolveImageWrite(settings.imageModelId).split;
 	const group = key === WECHAT_GROUP;
+	const turns = openUserTurns(room.lines, turn);
 	const prevScene = previousWechatPrompt({
 		...live,
 		lines: room.lines
@@ -5465,10 +5646,11 @@ async function completeMulti(chat, key, turn, armed, onTextReady) {
 				...live.rooms,
 				[key]: room
 			}
-		}, key, stickers, turn),
+		}, key, stickers, turns),
 		max_tokens: group ? 1200 + Math.max(1, chat.characters.length) * 900 + (inline ? 600 : 0) : inline ? 2200 : 800
-	});
-	const allowLong = standingDirectives(chat).length > 0 || parseUserMarkup(turn.text).directives.length > 0;
+	}, signal);
+	if (!jobLive(chatId, job)) return;
+	const allowLong = standingDirectives(chat).length > 0 || turns.some((item) => parseUserMarkup(item.text).directives.length > 0);
 	const split = splitChatPrompt(raw);
 	const pack = packOf(stickers);
 	const lines = [];
@@ -5557,6 +5739,7 @@ async function completeMulti(chat, key, turn, armed, onTextReady) {
 			})]
 		});
 	}
+	if (!jobLive(chatId, job)) return;
 	patchSession(chatId, (s) => {
 		const rooms = { ...s.rooms ?? {} };
 		const cur = rooms[key] ?? emptyRoom();
@@ -5596,154 +5779,105 @@ async function withMultiRoom(chat) {
 	};
 }
 async function sendWechat(chat, onTextReady, replaceFromId) {
-	if (wechatIsMulti(chat)) {
-		const chatId = chat.id;
-		if (busy$1.has(chatId)) return;
-		const slot = await withMultiRoom(chat);
-		if (!slot) return;
-		const text = slot.room.draft.trim();
-		const pending = slot.room.pending;
-		if (!text && !pending.length) return;
-		const armed = sessionOf(chatId)?.armed === true;
-		let kept = slot.room.lines;
-		if (replaceFromId) {
-			const idx = slot.room.lines.findIndex((l) => l.id === replaceFromId);
-			if (idx < 0) return;
-			kept = slot.room.lines.slice(0, idx);
-		}
-		busy$1.add(chatId);
-		const turn = {
-			id: uid("w_"),
-			role: "user",
-			text,
-			attachments: pending
-		};
-		const fold = clampFold(kept, slot.room.folded || 0, slot.room.earlier);
-		patchSession(chatId, (s) => {
-			const rooms = { ...s.rooms ?? {} };
-			rooms[slot.key] = {
-				...slot.room,
-				...fold,
-				draft: "",
-				pending: [],
-				lines: [...kept, turn]
-			};
-			return {
-				...s,
-				rooms
-			};
-		});
-		try {
-			await completeMulti(chat, slot.key, turn, armed, onTextReady);
-		} catch (e) {
-			onTextReady();
-			const err = e instanceof Error ? e.message : "没发出去";
-			if (err !== "Aborted") useApp.getState().toast(err);
-		} finally {
-			busy$1.delete(chatId);
-		}
-		return;
-	}
 	const chatId = chat.id;
-	if (busy$1.has(chatId)) return;
-	const session = sessionOf(chatId);
-	if (!session) return;
-	const text = session.draft.trim();
-	const pending = session.pending;
-	if (!text && !pending.length) return;
-	const armed = session.armed;
-	let kept = session.lines;
-	if (replaceFromId) {
-		const idx = session.lines.findIndex((l) => l.id === replaceFromId);
-		if (idx < 0) return;
-		kept = session.lines.slice(0, idx);
-	}
-	busy$1.add(chatId);
-	const turn = {
-		id: uid("w_"),
-		role: "user",
-		text,
-		attachments: pending
-	};
-	const fold = clampFold(kept, session.folded || 0, session.earlier);
-	patchSession(chatId, (s) => ({
-		...s,
-		...fold,
-		draft: "",
-		pending: [],
-		lines: [...kept, turn]
-	}));
-	try {
-		await completeReply(chat, turn, armed, onTextReady);
-	} catch (e) {
-		onTextReady();
-		const err = e instanceof Error ? e.message : "没发出去";
-		if (err !== "Aborted") useApp.getState().toast(err);
-	} finally {
-		busy$1.delete(chatId);
-	}
-}
-function canContinue(lines) {
-	return [...lines].reverse().find((line) => !line.continued)?.role === "assistant";
-}
-async function continueWechat(chat, onTextReady) {
-	if (wechatIsMulti(chat)) {
-		const chatId = chat.id;
-		if (busy$1.has(chatId)) return;
-		const slot = await withMultiRoom(chat);
-		if (!slot || !canContinue(slot.room.lines)) return;
-		const armed = sessionOf(chatId)?.armed === true;
-		busy$1.add(chatId);
-		const turn = {
-			id: uid("w_"),
-			role: "user",
-			text: "",
-			attachments: [],
-			continued: true
-		};
-		patchSession(chatId, (s) => {
-			const rooms = { ...s.rooms ?? {} };
-			const cur = rooms[slot.key] ?? slot.room;
-			rooms[slot.key] = {
-				...cur,
-				lines: [...cur.lines, turn]
+	await runJob(chatId, onTextReady, async (signal, job, ready) => {
+		if (wechatIsMulti(chat)) {
+			const slot = await withMultiRoom(chat);
+			if (!slot || !jobLive(chatId, job)) return;
+			const text = slot.room.draft.trim();
+			const pending = slot.room.pending;
+			if (!text && !pending.length) return;
+			const kept = cutAt(slot.room.lines, replaceFromId);
+			if (!kept) return;
+			const armed = sessionOf(chatId)?.armed === true;
+			const turn = {
+				id: uid("w_"),
+				role: "user",
+				text,
+				attachments: pending
 			};
-			return {
-				...s,
-				rooms
-			};
-		});
-		try {
-			await completeMulti(chat, slot.key, turn, armed, onTextReady);
-		} catch (e) {
+			const fold = clampFold(kept, slot.room.folded || 0, slot.room.earlier);
+			if (!jobLive(chatId, job)) return;
 			patchSession(chatId, (s) => {
 				const rooms = { ...s.rooms ?? {} };
-				const cur = rooms[slot.key];
-				if (!cur) return s;
-				const idx = cur.lines.findIndex((line) => line.id === turn.id);
-				if (idx < 0 || cur.lines.slice(idx + 1).some((line) => line.role === "assistant")) return s;
 				rooms[slot.key] = {
-					...cur,
-					lines: cur.lines.filter((line) => line.id !== turn.id)
+					...slot.room,
+					...fold,
+					draft: "",
+					pending: [],
+					lines: [...kept, turn]
 				};
 				return {
 					...s,
 					rooms
 				};
 			});
-			onTextReady();
-			const err = e instanceof Error ? e.message : "没发出去";
-			if (err !== "Aborted") useApp.getState().toast(err);
-		} finally {
-			busy$1.delete(chatId);
+			await completeMulti(chat, slot.key, turn, armed, ready, signal, job);
+			return;
 		}
-		return;
-	}
+		const session = sessionOf(chatId);
+		if (!session) return;
+		const text = session.draft.trim();
+		const pending = session.pending;
+		if (!text && !pending.length) return;
+		const kept = cutAt(session.lines, replaceFromId);
+		if (!kept) return;
+		const turn = {
+			id: uid("w_"),
+			role: "user",
+			text,
+			attachments: pending
+		};
+		const fold = clampFold(kept, session.folded || 0, session.earlier);
+		if (!jobLive(chatId, job)) return;
+		patchSession(chatId, (s) => ({
+			...s,
+			...fold,
+			draft: "",
+			pending: [],
+			lines: [...kept, turn]
+		}));
+		await completeReply(chat, turn, session.armed, ready, signal, job);
+	});
+}
+function canContinue(lines) {
+	return [...lines].reverse().find((line) => !line.continued)?.role === "assistant";
+}
+function dropUnanswered(chatId, key, turnId) {
+	if (!jobLive(chatId, jobs.get(chatId) ?? -1)) return;
+	patchSession(chatId, (s) => {
+		if (key && s.rooms) {
+			const rooms = { ...s.rooms };
+			const cur = rooms[key];
+			if (!cur) return s;
+			const idx = cur.lines.findIndex((line) => line.id === turnId);
+			if (idx < 0 || cur.lines.slice(idx + 1).some((line) => line.role === "assistant")) return s;
+			rooms[key] = {
+				...cur,
+				lines: cur.lines.filter((line) => line.id !== turnId)
+			};
+			return {
+				...s,
+				rooms
+			};
+		}
+		const idx = s.lines.findIndex((line) => line.id === turnId);
+		if (idx < 0 || s.lines.slice(idx + 1).some((line) => line.role === "assistant")) return s;
+		return {
+			...s,
+			lines: s.lines.filter((line) => line.id !== turnId)
+		};
+	});
+}
+async function replyTail(chat, key, lines, armed, ready, signal, job) {
+	chat.id;
+	const last = [...lines].reverse().find((line) => line.role === "user" && !line.continued);
+	if (!last) return;
+	if (key) await completeMulti(chat, key, last, armed, ready, signal, job);
+	else await completeReply(chat, last, armed, ready, signal, job);
+}
+async function startContinue(chat, key, lines, armed, ready, signal, job) {
 	const chatId = chat.id;
-	if (busy$1.has(chatId)) return;
-	const session = sessionOf(chatId);
-	if (!session || !canContinue(session.lines)) return;
-	busy$1.add(chatId);
 	const turn = {
 		id: uid("w_"),
 		role: "user",
@@ -5751,87 +5885,137 @@ async function continueWechat(chat, onTextReady) {
 		attachments: [],
 		continued: true
 	};
-	patchSession(chatId, (s) => ({
+	if (!jobLive(chatId, job)) return;
+	if (key) patchSession(chatId, (s) => {
+		const rooms = { ...s.rooms ?? {} };
+		const cur = rooms[key];
+		if (!cur) return s;
+		rooms[key] = {
+			...cur,
+			lines: [...lines, turn]
+		};
+		return {
+			...s,
+			rooms
+		};
+	});
+	else patchSession(chatId, (s) => ({
 		...s,
-		lines: [...s.lines, turn]
+		lines: [...lines, turn]
 	}));
 	try {
-		await completeReply(chat, turn, session.armed, onTextReady);
+		if (key) await completeMulti(chat, key, turn, armed, ready, signal, job);
+		else await completeReply(chat, turn, armed, ready, signal, job);
 	} catch (e) {
-		patchSession(chatId, (s) => {
-			const idx = s.lines.findIndex((line) => line.id === turn.id);
-			if (idx < 0 || s.lines.slice(idx + 1).some((line) => line.role === "assistant")) return s;
-			return {
-				...s,
-				lines: s.lines.filter((line) => line.id !== turn.id)
-			};
-		});
-		onTextReady();
-		const err = e instanceof Error ? e.message : "没发出去";
-		if (err !== "Aborted") useApp.getState().toast(err);
-	} finally {
-		busy$1.delete(chatId);
+		if (jobLive(chatId, job)) dropUnanswered(chatId, key, turn.id);
+		throw e;
 	}
 }
-async function regenWechat(chat, lineId, onTextReady) {
-	if (wechatIsMulti(chat)) {
-		const chatId = chat.id;
-		if (busy$1.has(chatId)) return;
-		const slot = await withMultiRoom(chat);
-		if (!slot) return;
-		const idx = slot.room.lines.findIndex((l) => l.id === lineId);
-		const turn = slot.room.lines[idx];
-		if (!turn || turn.role !== "user") return;
-		const kept = slot.room.lines.slice(0, idx + 1);
-		const fold = clampFold(kept, slot.room.folded || 0, slot.room.earlier);
-		busy$1.add(chatId);
-		patchSession(chatId, (s) => {
-			const rooms = { ...s.rooms ?? {} };
-			rooms[slot.key] = {
-				...slot.room,
-				...fold,
-				lines: kept
-			};
-			return {
-				...s,
-				rooms
-			};
-		});
-		try {
-			await completeMulti(chat, slot.key, turn, sessionOf(chatId)?.armed === true, onTextReady);
-		} catch (e) {
-			onTextReady();
-			const err = e instanceof Error ? e.message : "没发出去";
-			if (err !== "Aborted") useApp.getState().toast(err);
-		} finally {
-			busy$1.delete(chatId);
-		}
-		return;
-	}
+async function continueWechat(chat, onTextReady) {
 	const chatId = chat.id;
-	if (busy$1.has(chatId)) return;
-	const session = sessionOf(chatId);
-	if (!session) return;
-	const idx = session.lines.findIndex((l) => l.id === lineId);
-	const turn = session.lines[idx];
-	if (!turn || turn.role !== "user") return;
-	const kept = session.lines.slice(0, idx + 1);
-	const fold = clampFold(kept, session.folded || 0, session.earlier);
-	busy$1.add(chatId);
-	patchSession(chatId, (s) => ({
-		...s,
-		...fold,
-		lines: kept
-	}));
-	try {
-		await completeReply(chat, turn, session.armed, onTextReady);
-	} catch (e) {
-		onTextReady();
-		const err = e instanceof Error ? e.message : "没发出去";
-		if (err !== "Aborted") useApp.getState().toast(err);
-	} finally {
-		busy$1.delete(chatId);
-	}
+	await runJob(chatId, onTextReady, async (signal, job, ready) => {
+		if (wechatIsMulti(chat)) {
+			const slot = await withMultiRoom(chat);
+			if (!slot || !jobLive(chatId, job)) return;
+			const lines = dropDangling(slot.room.lines);
+			const armed = sessionOf(chatId)?.armed === true;
+			if (!canContinue(lines)) {
+				if (lines.length !== slot.room.lines.length) patchSession(chatId, (s) => {
+					const rooms = { ...s.rooms ?? {} };
+					const cur = rooms[slot.key];
+					if (!cur) return s;
+					rooms[slot.key] = {
+						...cur,
+						lines
+					};
+					return {
+						...s,
+						rooms
+					};
+				});
+				await replyTail(chat, slot.key, lines, armed, ready, signal, job);
+				return;
+			}
+			await startContinue(chat, slot.key, lines, armed, ready, signal, job);
+			return;
+		}
+		const session = sessionOf(chatId);
+		if (!session) return;
+		const lines = dropDangling(session.lines);
+		if (!canContinue(lines)) {
+			if (lines.length !== session.lines.length) patchSession(chatId, (s) => ({
+				...s,
+				lines
+			}));
+			await replyTail(chat, null, lines, session.armed, ready, signal, job);
+			return;
+		}
+		await startContinue(chat, null, lines, session.armed, ready, signal, job);
+	});
+}
+async function regenContinueFrom(chat, lineId, onTextReady) {
+	const chatId = chat.id;
+	await runJob(chatId, onTextReady, async (signal, job, ready) => {
+		if (wechatIsMulti(chat)) {
+			const slot = await withMultiRoom(chat);
+			if (!slot || !jobLive(chatId, job)) return;
+			const at = markerAfter(slot.room.lines, lineId);
+			if (at < 0) return;
+			const kept = slot.room.lines.slice(0, at);
+			if (!canContinue(kept)) return;
+			await startContinue(chat, slot.key, kept, sessionOf(chatId)?.armed === true, ready, signal, job);
+			return;
+		}
+		const session = sessionOf(chatId);
+		if (!session) return;
+		const at = markerAfter(session.lines, lineId);
+		if (at < 0) return;
+		const kept = session.lines.slice(0, at);
+		if (!canContinue(kept)) return;
+		await startContinue(chat, null, kept, session.armed, ready, signal, job);
+	});
+}
+async function regenWechat(chat, lineId, onTextReady) {
+	const chatId = chat.id;
+	await runJob(chatId, onTextReady, async (signal, job, ready) => {
+		if (wechatIsMulti(chat)) {
+			const slot = await withMultiRoom(chat);
+			if (!slot || !jobLive(chatId, job)) return;
+			const idx = slot.room.lines.findIndex((l) => l.id === lineId);
+			const turn = slot.room.lines[idx];
+			if (!turn || turn.role !== "user") return;
+			const kept = slot.room.lines.slice(0, idx + 1);
+			const fold = clampFold(kept, slot.room.folded || 0, slot.room.earlier);
+			patchSession(chatId, (s) => {
+				const rooms = { ...s.rooms ?? {} };
+				rooms[slot.key] = {
+					...slot.room,
+					...fold,
+					lines: kept
+				};
+				return {
+					...s,
+					rooms
+				};
+			});
+			await completeMulti(chat, slot.key, turn, sessionOf(chatId)?.armed === true, ready, signal, job);
+			return;
+		}
+		const session = sessionOf(chatId);
+		if (!session) return;
+		const idx = session.lines.findIndex((l) => l.id === lineId);
+		const turn = session.lines[idx];
+		if (!turn || turn.role !== "user") return;
+		const kept = session.lines.slice(0, idx + 1);
+		const fold = clampFold(kept, session.folded || 0, session.earlier);
+		if (!jobLive(chatId, job)) return;
+		patchSession(chatId, (s) => ({
+			...s,
+			...fold,
+			lines: kept
+		}));
+		await completeReply(chat, turn, session.armed, ready, signal, job);
+	});
 }
 function patchLine(chatId, lineId, fn) {
 	patchSession(chatId, (s) => {
@@ -7645,6 +7829,7 @@ function WechatLive({ chat, session }) {
 	const [picked, setPicked] = (0, import_react.useState)(null);
 	const [book, setBook] = (0, import_react.useState)(false);
 	const [editFrom, setEditFrom] = (0, import_react.useState)(null);
+	const [editBackup, setEditBackup] = (0, import_react.useState)(null);
 	(0, import_react.useEffect)(() => {
 		const el = scroller.current;
 		if (!el) return;
@@ -7692,14 +7877,41 @@ function WechatLive({ chat, session }) {
 		patchView({ pending: [...pending, ...items.slice(0, roomLeft)] });
 	};
 	const send = () => {
-		if (phase !== "idle") return;
+		if (phase === "sum") return;
 		if (!draft.trim() && !pending.length) return;
 		setPhase("type");
 		setEmoji(false);
 		const from = editFrom && lines.some((l) => l.id === editFrom) ? editFrom : void 0;
 		setEditFrom(null);
+		setEditBackup(null);
 		setPicked(null);
 		sendWechat(chat, () => setPhase("idle"), from);
+	};
+	const cancelEdit = () => {
+		if (editBackup) {
+			const back = editBackup;
+			if (!multi || back.room === active) patchView({
+				draft: back.draft,
+				pending: back.pending
+			});
+			else {
+				const cur = useApp.getState().wechatSessions[chat.id];
+				const room = cur?.rooms?.[back.room];
+				if (cur && room) useApp.getState().setWechatSession(chat.id, {
+					...cur,
+					rooms: {
+						...cur.rooms,
+						[back.room]: {
+							...room,
+							draft: back.draft,
+							pending: back.pending
+						}
+					}
+				});
+			}
+		}
+		setEditFrom(null);
+		setEditBackup(null);
 	};
 	const close = () => {
 		const cur = useApp.getState().wechatSessions[chat.id];
@@ -7922,12 +8134,21 @@ function WechatLive({ chat, session }) {
 						type: "button",
 						className: "grid size-9 shrink-0 place-items-center rounded-md bg-[#95EC69] text-black disabled:opacity-40",
 						"aria-label": "发送",
-						disabled: phase !== "idle" || !draft.trim() && !pending.length,
+						disabled: phase === "sum" || !draft.trim() && !pending.length,
 						onClick: send,
 						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ArrowUp, { className: "size-5" })
 					})
 				]
 			}),
+			editFrom ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				className: "flex justify-center pt-1",
+				children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+					type: "button",
+					className: "text-[12px] text-neutral-500",
+					onClick: cancelEdit,
+					children: "取消编辑"
+				})
+			}) : null,
 			emoji ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(EmojiPanel, {
 				tab,
 				setTab,
@@ -7972,25 +8193,38 @@ function WechatLive({ chat, session }) {
 				picked,
 				onPick: (id) => setPicked((cur) => cur === id ? null : id),
 				onRegen: (id) => {
+					cancelEdit();
 					setPicked(null);
 					setPhase("type");
 					regenWechat(chat, id, () => setPhase("idle"));
 				},
+				onRegenNode: (id) => {
+					cancelEdit();
+					setPicked(null);
+					setPhase("type");
+					regenContinueFrom(chat, id, () => setPhase("idle"));
+				},
 				onEdit: (line) => {
+					setEditBackup((prev) => prev ?? {
+						room: active,
+						draft,
+						pending: pending.map((item) => ({ ...item }))
+					});
 					patchView({
 						draft: line.text,
-						pending: line.attachments
+						pending: line.attachments.map((item) => ({ ...item }))
 					});
 					setEditFrom(line.id);
 					setPicked(null);
 				}
 			}),
-			phase === "idle" && [...lines].reverse().find((line) => !line.continued)?.role === "assistant" ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+			phase !== "sum" && ([...lines].reverse().find((line) => !line.continued)?.role === "assistant" || phase === "type") ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 				className: "flex justify-center py-2",
 				children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 					type: "button",
 					className: "rounded-full border border-neutral-300 bg-white px-5 py-1 text-[14px]",
 					onClick: () => {
+						cancelEdit();
 						setPhase("type");
 						continueWechat(chat, () => setPhase("idle"));
 					},
@@ -8141,7 +8375,8 @@ function Shell$1({ title, onClose, children, footer, overlay, scrollRef, full, o
 	if (full) return (0, import_react_dom.createPortal)(node, document.body);
 	return node;
 }
-function Thread({ chat, name, lines, names, speakerId, roomNames, openInner, toggleInner, picked, onPick, onRegen, onEdit, readOnly }) {
+function Thread({ chat, name, lines, names, speakerId, roomNames, openInner, toggleInner, picked, onPick, onRegen, onRegenNode, onEdit, readOnly }) {
+	const nodes = continueNodeIds(lines);
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 		className: "flex flex-col gap-2",
 		children: lines.map((line) => line.continued ? null : line.role === "user" ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -8188,11 +8423,20 @@ function Thread({ chat, name, lines, names, speakerId, roomNames, openInner, tog
 							images: lineImages(line),
 							readOnly
 						}) : null,
-						line.inner ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-							type: "button",
-							className: "text-[12px] text-neutral-500",
-							onClick: () => toggleInner(line.id),
-							children: openInner[line.id] ? "收起内心" : "内心"
+						line.inner ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "flex items-center gap-1 text-[12px] leading-none text-neutral-500",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+								type: "button",
+								className: "flex items-center gap-0.5",
+								onClick: () => toggleInner(line.id),
+								children: [openInner[line.id] ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChevronDown, { className: "size-3" }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChevronRight, { className: "size-3" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: nodes.has(line.id) ? "内心(节点)" : "内心" })]
+							}), nodes.has(line.id) && openInner[line.id] && onRegenNode ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+								type: "button",
+								"aria-label": "重新生成",
+								className: "grid size-3 place-items-center",
+								onClick: () => onRegenNode(line.id),
+								children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(RefreshCw, { className: "size-3" })
+							}) : null]
 						}) : null,
 						line.inner && openInner[line.id] ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 							className: "max-w-[85%] whitespace-pre-wrap rounded-md bg-white/80 px-2 py-1 text-[12px] leading-relaxed text-neutral-700",
@@ -8203,6 +8447,21 @@ function Thread({ chat, name, lines, names, speakerId, roomNames, openInner, tog
 			})]
 		}, line.id))
 	});
+}
+function continueNodeIds(lines) {
+	const ids = /* @__PURE__ */ new Set();
+	for (let i = 0; i < lines.length; i++) {
+		if (!lines[i].continued) continue;
+		if (!lines.slice(i + 1).some((line) => line.role === "assistant")) continue;
+		for (let j = i - 1; j >= 0; j--) {
+			if (lines[j].continued) break;
+			if (lines[j].role === "assistant" && lines[j].inner) {
+				ids.add(lines[j].id);
+				break;
+			}
+		}
+	}
+	return ids;
 }
 function speakerLabel(chat, speakerId, fallback, roomNames) {
 	if (!speakerId) return fallback;
@@ -10161,22 +10420,32 @@ function ConnectionPanel() {
 				title: "下载存档",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 					className: "mb-4 text-[13px] text-muted",
-					children: "全部含配图；无配图可再次点重生。"
+					children: "全部含配图。部分配图留下你上传的头像、表情包、收藏和照片，不含生成图。无配图可再次点重生。"
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 					className: "flex flex-col gap-2",
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PrimaryBtn, {
-						onClick: () => {
-							exportArchive("full");
-							setDl(false);
-						},
-						children: "全部"
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(GhostBtn, {
-						onClick: () => {
-							exportArchive("lite");
-							setDl(false);
-						},
-						children: "无配图"
-					})]
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PrimaryBtn, {
+							onClick: () => {
+								exportArchive("full");
+								setDl(false);
+							},
+							children: "全部"
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(GhostBtn, {
+							onClick: () => {
+								exportArchive("partial");
+								setDl(false);
+							},
+							children: "部分配图"
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(GhostBtn, {
+							onClick: () => {
+								exportArchive("lite");
+								setDl(false);
+							},
+							children: "无配图"
+						})
+					]
 				})]
 			}),
 			apiOpen && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -11056,47 +11325,6 @@ function ParamRow({ label, value, min, max, step, digits = 2, onChange }) {
 		})]
 	});
 }
-function esc(s) {
-	return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-function stripEndTag(s, tag) {
-	const core = tag.replace(/,\s*$/, "").trim();
-	const re = new RegExp(`(?:^|,)?\\s*${esc(core)}\\s*,?\\s*$`, "i");
-	let cur = s.trimEnd();
-	for (let i = 0; i < 4; i++) {
-		const next = cur.replace(re, "").replace(/[,\s]+$/g, "").trimEnd();
-		if (next === cur) break;
-		cur = next;
-	}
-	return cur;
-}
-function appendTag(s, tag) {
-	const t = s.trimEnd();
-	if (!t) return tag;
-	if (t.endsWith(",")) return `${t} ${tag}`;
-	return `${t}, ${tag}`;
-}
-var SENSITIVE_RE = /^\s*rating:\s*sensitive,\s*nsfw,\s*uncensored,\s*/i;
-function stripSensitivePrefix(s) {
-	return s.replace(SENSITIVE_RE, "").replace(/^\s+/, "");
-}
-function applyFrontFlags(front, uncensored, fullBody) {
-	let s = stripEndTag(stripEndTag(front, FULLBODY_TAG), UNCENSORED_TAG);
-	if (uncensored) s = appendTag(s, UNCENSORED_TAG);
-	if (fullBody) s = appendTag(s, FULLBODY_TAG);
-	return s;
-}
-function applyBackFlags(back, sensitive) {
-	const rest = stripSensitivePrefix(back);
-	if (!sensitive) return rest;
-	return rest ? `${SENSITIVE_PREFIX} ${rest}` : SENSITIVE_PREFIX;
-}
-function applyMergedFlags(text, flags) {
-	let s = stripSensitivePrefix(text);
-	s = applyFrontFlags(s, flags.uncensored, flags.fullBody);
-	if (flags.sensitive) s = s ? `${SENSITIVE_PREFIX} ${s}` : SENSITIVE_PREFIX;
-	return s;
-}
 var HOLD_MS$2 = 400;
 function buzz() {
 	try {
@@ -11114,7 +11342,7 @@ function GripBars$1() {
 		]
 	});
 }
-function LibraryDrawer({ items, onApply, onDelete, onReorder, label = "角色选择", className }) {
+function LibraryDrawer({ items, onApply, onDelete, onReorder, onEdit, label = "角色选择", className }) {
 	const [open, setOpen] = (0, import_react.useState)(false);
 	const [sortMode, setSortMode] = (0, import_react.useState)(false);
 	const [dragId, setDragId] = (0, import_react.useState)(null);
@@ -11136,6 +11364,10 @@ function LibraryDrawer({ items, onApply, onDelete, onReorder, label = "角色选
 	const rafRef = (0, import_react.useRef)(0);
 	const onReorderRef = (0, import_react.useRef)(onReorder);
 	onReorderRef.current = onReorder;
+	const onEditRef = (0, import_react.useRef)(onEdit);
+	onEditRef.current = onEdit;
+	const lastTap = (0, import_react.useRef)(null);
+	const moved = (0, import_react.useRef)(false);
 	const display = (liveIds ?? items.map((c) => c.id)).map((id) => items.find((c) => c.id === id)).filter((c) => Boolean(c));
 	const persist = () => {
 		if (sortRef.current && idsRef.current.length && !savedRef.current) {
@@ -11296,6 +11528,7 @@ function LibraryDrawer({ items, onApply, onDelete, onReorder, label = "角色选
 	};
 	const onRowPointerDown = (e, id) => {
 		if (sortRef.current) return;
+		moved.current = false;
 		if (items.length < 2) return;
 		if (e.target.closest("[data-row-action]")) return;
 		if (e.pointerType === "mouse" && e.button !== 0) return;
@@ -11321,7 +11554,30 @@ function LibraryDrawer({ items, onApply, onDelete, onReorder, label = "角色选
 		if (sortRef.current) return;
 		const p = press.current;
 		if (!p) return;
-		if (Math.abs(e.clientY - p.y) + Math.abs(e.movementX) > 12) clearPress();
+		if (Math.abs(e.clientY - p.y) + Math.abs(e.movementX) > 12) {
+			moved.current = true;
+			clearPress();
+		}
+	};
+	const onRowPointerUp = (e, id) => {
+		if (sortRef.current || moved.current) return;
+		if (e.target.closest("[data-row-action]")) return;
+		if (!onEditRef.current) return;
+		const now = Date.now();
+		const prev = lastTap.current;
+		if (prev && prev.id === id && now - prev.at < 450) {
+			lastTap.current = null;
+			window.clearTimeout(pressTimer.current);
+			press.current = null;
+			setHoldId(null);
+			onEditRef.current(id);
+			close();
+			return;
+		}
+		lastTap.current = {
+			id,
+			at: now
+		};
 	};
 	const onGripDown = (e, id) => {
 		e.preventDefault();
@@ -11381,7 +11637,10 @@ function LibraryDrawer({ items, onApply, onDelete, onReorder, label = "角色选
 							style: { touchAction: sortMode ? "pan-y" : "manipulation" },
 							onPointerDown: (e) => onRowPointerDown(e, c.id),
 							onPointerMove: onRowPointerMove,
-							onPointerUp: clearPress,
+							onPointerUp: (e) => {
+								onRowPointerUp(e, c.id);
+								clearPress();
+							},
 							onPointerCancel: clearPress,
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 								className: "min-w-0 flex-1 truncate text-[13px] leading-5",
@@ -11419,9 +11678,9 @@ function LibraryDrawer({ items, onApply, onDelete, onReorder, label = "角色选
 							className: "px-2.5 py-2 text-[12px] text-muted",
 							children: "还没有保存的项目"
 						}),
-						items.length > 1 && !sortMode ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						items.length > 0 && !sortMode && (onEdit || items.length > 1) ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 							className: "px-3 pb-1 pt-0.5 text-[9px] leading-4 text-muted",
-							children: "长按进入排序"
+							children: onEdit && items.length > 1 ? "双击修改 · 长按排序" : onEdit ? "双击修改" : "长按进入排序"
 						}) : null
 					]
 				}), pendingDelete && !sortMode ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -11456,6 +11715,1568 @@ function LibraryDrawer({ items, onApply, onDelete, onReorder, label = "角色选
 			}), document.body)
 		]
 	});
+}
+function RoleEditor({ chat, mode }) {
+	const grok = useApp((s) => s.settings.grokModelId);
+	const cards = useApp((s) => s.cards);
+	const [busy, setBusy] = (0, import_react.useState)(null);
+	const [polished, setPolished] = (0, import_react.useState)(false);
+	const [charSel, setCharSel] = (0, import_react.useState)(0);
+	const [memPick, setMemPick] = (0, import_react.useState)(false);
+	const patch = (p) => useApp.getState().patchChat(chat.id, p);
+	const char = chat.characters[charSel] ?? chat.characters[0];
+	const autoPolish = useApp((s) => s.ui.autoPolish);
+	const polishJob = useApp((s) => s.ui.polishJob);
+	const busyRef = (0, import_react.useRef)(false);
+	const locked = !!busy;
+	const memTurns = memoryTurnStats(chat.messages.length, chat.memoryUntil);
+	const { W, I } = foldWindow();
+	const memOk = memoryCaughtUp(chat.messages.length, chat.memoryUntil || 0, W, I);
+	const memReady = foldCoveredEnd(chat.messages.length, W, I) >= 2;
+	const memoryHint = useApp((s) => s.ui.memoryHint);
+	const memStreaming = memoryHint?.chatId === chat.id && memoryHint.state === "generating";
+	const memoryShown = memStreaming && memoryHint.draft != null ? memoryHint.draft : chat.memory;
+	const fieldBusyLabel = busy?.kind === "field" ? FIELD_LABELS[busy.key] || busy.key : "";
+	const syncChars = (characters, isMulti = chat.isMulti) => patch({
+		characters,
+		isMulti,
+		imageParams: syncCharsFromRole(chat.imageParams, characters, isMulti)
+	});
+	const runPolish = async (instruction, mark = "all") => {
+		if (busyRef.current) return;
+		busyRef.current = true;
+		setBusy({ kind: mark });
+		try {
+			const json = await polishAll(useApp.getState().chats.find((c) => c.id === chat.id) ?? chat, grok, instruction);
+			useApp.getState().patchChat(chat.id, (c) => {
+				const merged = mergePolish(c, json);
+				return {
+					...c,
+					...merged,
+					imageParams: syncCharsFromRole(c.imageParams, merged.characters, c.isMulti),
+					updatedAt: Date.now()
+				};
+			});
+			setPolished(true);
+			useApp.getState().toast(instruction?.trim() ? "已按要求修改" : "已完善设定");
+		} catch (e) {
+			useApp.getState().toast(e instanceof Error ? e.message : "完善失败");
+		} finally {
+			busyRef.current = false;
+			setBusy(null);
+		}
+	};
+	const runField = async (key, charId, instruction) => {
+		if (busyRef.current) return;
+		busyRef.current = true;
+		setBusy({
+			kind: "field",
+			key,
+			charId
+		});
+		try {
+			const snapshot = useApp.getState().chats.find((c) => c.id === chat.id) ?? chat;
+			const text = await polishField(snapshot, grok, key, instruction, charId, (t) => {
+				if (key !== "persona") return;
+				if (!snapshot.characters.find((c) => c.id === charId)?.personaVoices) return;
+				useApp.getState().patchChat(chat.id, (c) => ({
+					...applyRoleField(c, key, t, charId),
+					updatedAt: Date.now()
+				}));
+			});
+			useApp.getState().patchChat(chat.id, (c) => ({
+				...applyRoleField(c, key, text, charId),
+				updatedAt: Date.now()
+			}));
+			useApp.getState().toast(`已更新${FIELD_LABELS[key] || key}`);
+		} catch (e) {
+			useApp.getState().toast(e instanceof Error ? e.message : "生成失败");
+		} finally {
+			busyRef.current = false;
+			setBusy(null);
+		}
+	};
+	const openPersonalize = (key, charId) => {
+		if (locked) return;
+		useApp.getState().setUI({ fieldEdit: {
+			key,
+			charId,
+			text: ""
+		} });
+	};
+	(0, import_react.useEffect)(() => {
+		if (!autoPolish || mode !== "create") return;
+		useApp.getState().setUI({ autoPolish: false });
+		runPolish();
+	}, [autoPolish]);
+	(0, import_react.useEffect)(() => {
+		if (!polishJob || polishJob.chatId !== chat.id) return;
+		useApp.getState().setUI({ polishJob: null });
+		if (polishJob.kind === "field" && polishJob.key) runField(polishJob.key, polishJob.charId, polishJob.instruction);
+		else runPolish(polishJob.instruction, "personalize");
+	}, [polishJob]);
+	const startChat = async () => {
+		const name = chat.characters.map((c) => c.name).filter(Boolean).join("、") || chat.name || "未命名";
+		useApp.getState().patchChat(chat.id, (c) => ({
+			...c,
+			name,
+			isDraft: false,
+			imageParams: syncCharsFromRole(c.imageParams, c.characters, c.isMulti)
+		}));
+		useApp.getState().commitChat(chat.id);
+		if (mode === "create") {
+			const { sendOpening } = await import("./chat-actions-TMj17Ods.mjs");
+			sendOpening(chat.id);
+		} else useApp.getState().toast("设定已保存");
+	};
+	const nameBlock = char ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(FieldBlock, {
+		label: "名字",
+		hint: "可空，让 Grok 起",
+		value: char.name,
+		placeholder: PLACEHOLDERS.name,
+		single: true,
+		busy: busy?.kind === "field" && busy.key === "name" && busy.charId === char.id,
+		locked,
+		onChange: (v) => useApp.getState().patchChat(chat.id, (c) => {
+			const characters = c.characters.map((x) => x.id === char.id ? {
+				...x,
+				name: v
+			} : x);
+			return {
+				...c,
+				characters,
+				imageParams: {
+					...c.imageParams,
+					characters: c.imageParams.characters.map((slot) => slot.id === char.id ? {
+						...slot,
+						name: v
+					} : slot)
+				},
+				updatedAt: Date.now()
+			};
+		}),
+		onRegen: () => runField("name", char.id),
+		onPersonal: () => openPersonalize("name", char.id)
+	}) : null;
+	const overviewBlock = /* @__PURE__ */ (0, import_jsx_runtime.jsx)(FieldBlock, {
+		label: "要求总览",
+		hint: "可空。写了就是最高优先。例如：回复尽量详尽生动，不要简略。",
+		value: chat.overview,
+		placeholder: PLACEHOLDERS.overview,
+		busy: busy?.kind === "field" && busy.key === "overview",
+		locked,
+		onChange: (v) => patch({ overview: v }),
+		onRegen: () => runField("overview"),
+		onPersonal: () => openPersonalize("overview")
+	});
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		className: "h-full overflow-y-auto px-4 pb-56 pt-3 scroll-thin",
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				className: "mb-1 text-[11px] tracking-[0.14em] text-muted",
+				children: mode === "create" ? "NEW ROLE" : "EDIT ROLE"
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", {
+				className: "mb-1 text-[20px] font-semibold",
+				children: mode === "create" ? "写下她，再交给 Grok 补全" : "修改设定"
+			}),
+			mode === "edit" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+				className: "mb-4 text-[12px] text-muted",
+				children: "保存后立刻对之后的对话生效。取消则不改动。"
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "mb-3 flex items-end gap-2",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+					className: "inline-flex shrink-0 flex-col items-center gap-0.5 px-1 pb-1.5 text-[10px] text-muted",
+					onClick: () => useApp.getState().setUI({ saveCardOpen: true }),
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Download, { className: "size-3.5" }), "保存为角色卡"]
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+					className: "min-w-0 flex-1",
+					children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardSelect, {
+						onPick: (id) => {
+							const card = cards.find((c) => c.id === id);
+							if (card) useApp.getState().applyCard(chat.id, card, chat.isMulti ? charSel : void 0);
+						},
+						onEdit: (id) => useApp.getState().setUI({ editCardId: id })
+					})
+				})]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "mb-4 flex items-center gap-2 text-[14px]",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
+					className: "flex items-center gap-2",
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+							className: `grid size-5 place-items-center rounded-full border ${chat.isMulti ? "border-primary bg-primary text-on-primary" : "border-line-strong bg-card"}`,
+							children: chat.isMulti && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+								className: "text-[11px] leading-none",
+								children: "✓"
+							})
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+							type: "checkbox",
+							className: "sr-only",
+							checked: chat.isMulti,
+							onChange: (e) => {
+								const on = e.target.checked;
+								const characters = on ? chat.characters.length >= 2 ? chat.characters : [...chat.characters, emptyCharacter(2)] : [chat.characters[0] ?? emptyCharacter(1)];
+								setCharSel(0);
+								syncChars(characters, on);
+							}
+						}),
+						"多人"
+					]
+				}), chat.isMulti && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+					className: "ml-auto inline-flex items-center gap-1 text-[13px] text-muted",
+					children: ["人数", /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+						className: "inline-flex items-center rounded-full border border-line bg-card",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+								type: "button",
+								className: "px-2 py-1",
+								onClick: () => {
+									const characters = [...chat.characters, emptyCharacter(chat.characters.length + 1)];
+									syncChars(characters, true);
+								},
+								children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChevronUp, { className: "size-3.5" })
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+								className: "px-2 text-ink",
+								children: chat.characters.length
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+								type: "button",
+								className: "px-2 py-1",
+								disabled: chat.characters.length <= 2,
+								onClick: () => {
+									const characters = chat.characters.slice(0, -1);
+									setCharSel(0);
+									syncChars(characters, true);
+								},
+								children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChevronDown, { className: "size-3.5" })
+							})
+						]
+					})]
+				})]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
+				className: "mb-3",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FieldLabel, { children: "AI 版本" }),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChatModelSelect, {
+						align: "left",
+						className: "w-full rounded-full border border-line bg-card"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CustomAvatar, {
+						blobId: chat.customAvatarBlobId,
+						onId: (id) => patch({ customAvatarBlobId: id }),
+						onClear: () => patch({ customAvatarBlobId: "" })
+					})
+				]
+			}),
+			!chat.isMulti && nameBlock,
+			overviewBlock,
+			chat.isMulti && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
+				className: "mb-3",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FieldLabel, { children: "角色选择" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ExpandSelect, {
+					value: String(charSel),
+					options: chat.characters.map((c, i) => ({
+						id: String(i),
+						label: `角色${i + 1}${c.name ? ":" + c.name : ""}`
+					})),
+					onChange: (id) => setCharSel(Number(id)),
+					align: "left"
+				})]
+			}),
+			char && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: chat.isMulti ? "rounded-[22px] border border-line/80 bg-card/50 p-1" : "",
+				children: [
+					chat.isMulti && nameBlock,
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FieldBlock, {
+						label: "人设",
+						hint: "她是谁：性格、职业或身份、口头禅、和我的关系……外貌请写在下面那栏。",
+						value: char.persona,
+						placeholder: PLACEHOLDERS.persona,
+						busy: busy?.kind === "field" && busy.key === "persona" && busy.charId === char.id,
+						locked,
+						grow: Boolean(char.personaVoices),
+						titleExtra: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+							type: "button",
+							className: `rounded-full border px-2 py-0.5 text-[11px] leading-none transition ${char.personaVoices ? "border-primary bg-primary text-on-primary" : "border-primary bg-transparent text-primary"}`,
+							disabled: locked,
+							onClick: () => patch({ characters: chat.characters.map((c) => c.id === char.id ? {
+								...c,
+								personaVoices: !c.personaVoices
+							} : c) }),
+							children: "声部"
+						}),
+						onChange: (v) => patch({ characters: chat.characters.map((c) => c.id === char.id ? {
+							...c,
+							persona: v
+						} : c) }),
+						onRegen: () => runField("persona", char.id),
+						onPersonal: () => openPersonalize("persona", char.id)
+					}),
+					chat.isMulti ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "mb-3 px-1",
+						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CustomAvatar, {
+							blobId: char.wechatAvatarBlobId,
+							label: "自定义微信头像。不上传就用主聊天的头像",
+							onId: (id) => patch({ characters: chat.characters.map((c) => c.id === char.id ? {
+								...c,
+								wechatAvatarBlobId: id
+							} : c) }),
+							onClear: () => patch({ characters: chat.characters.map((c) => c.id === char.id ? {
+								...c,
+								wechatAvatarBlobId: ""
+							} : c) })
+						})
+					}) : null,
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FieldBlock, {
+						label: "说话方式",
+						hint: "语气、口癖、人称、句子长短。例如：软软的、会把「……」拖长。",
+						value: char.speech,
+						placeholder: PLACEHOLDERS.speech,
+						busy: busy?.kind === "field" && busy.key === "speech" && busy.charId === char.id,
+						locked,
+						onChange: (v) => patch({ characters: chat.characters.map((c) => c.id === char.id ? {
+							...c,
+							speech: v
+						} : c) }),
+						onRegen: () => runField("speech", char.id),
+						onPersonal: () => openPersonalize("speech", char.id)
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(LookRef, {
+						blobId: char.lookBlobId,
+						onPick: async (file) => {
+							const id = await saveBlob(await compressRef(file, 768, .82));
+							patch({ characters: chat.characters.map((c) => c.id === char.id ? {
+								...c,
+								lookBlobId: id
+							} : c) });
+						},
+						onBlob: async (blobId) => {
+							const blob = await getImage(blobId);
+							if (!blob) {
+								useApp.getState().toast("这张图已经不在了");
+								return;
+							}
+							const id = await saveBlob(blob);
+							patch({ characters: chat.characters.map((c) => c.id === char.id ? {
+								...c,
+								lookBlobId: id
+							} : c) });
+						},
+						onClear: () => patch({ characters: chat.characters.map((c) => c.id === char.id ? {
+							...c,
+							lookBlobId: ""
+						} : c) })
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FieldBlock, {
+						label: "外貌备忘",
+						hint: "用生图提示词书写。发型发色瞳色体型固定服装写这里。其他栏不用再写外貌。",
+						value: char.appearance,
+						placeholder: PLACEHOLDERS.appearance,
+						busy: busy?.kind === "field" && busy.key === "appearance" && busy.charId === char.id,
+						locked,
+						onChange: (v) => patch({ characters: chat.characters.map((c) => c.id === char.id ? {
+							...c,
+							appearance: v
+						} : c) }),
+						onRegen: () => runField("appearance", char.id),
+						onPersonal: () => openPersonalize("appearance", char.id)
+					})
+				]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FieldBlock, {
+				label: "开场场景",
+				hint: "现在在哪里、在做什么、气氛如何。",
+				value: chat.opening,
+				placeholder: PLACEHOLDERS.opening,
+				busy: busy?.kind === "field" && busy.key === "opening",
+				locked,
+				onChange: (v) => patch({ opening: v }),
+				onRegen: () => runField("opening"),
+				onPersonal: () => openPersonalize("opening")
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
+				className: "mb-3",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "mb-2 flex items-center justify-between",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "text-[13px] font-medium",
+						children: "状态栏"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "mt-0.5 text-[11px] text-muted",
+						children: "关掉就折叠。打开后，每句回复末尾都会更新这份状态。开启内容按固定骨架，可改冒号后的描述。"
+					})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Switch, {
+						on: chat.statusBarOn,
+						onChange: (v) => patch({
+							statusBarOn: v,
+							statusBar: chat.statusBar?.trim() ? chat.statusBar : DEFAULT_STATUS_BAR
+						})
+					})]
+				}), chat.statusBarOn && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TextArea, {
+					className: "min-h-[200px] font-mono text-[12px]",
+					value: chat.statusBar,
+					onChange: (e) => patch({ statusBar: e.target.value })
+				})]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Extras, {
+				extras: chat.extras,
+				onChange: (extras) => patch({ extras })
+			}),
+			mode === "edit" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
+				className: "mb-3",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FieldLabel, {
+						sub: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+							className: "flex items-center gap-1.5 text-[11px] text-muted",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [
+								"（已对话 ",
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+									className: "text-good",
+									children: memTurns.spoken
+								}),
+								" 轮，已总结到第",
+								" ",
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+									className: "text-good",
+									children: memTurns.folded
+								}),
+								" 轮）"
+							] }), memOk ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Check, { className: "size-3.5 text-good" }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(X, { className: "size-3.5 text-danger" })]
+						}),
+						hint: "聊久了会把更早的剧情压成备忘，下一轮当事实用。聊天里看不见。可改、可重总结、可清空。",
+						children: "长期记忆"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TextArea, {
+						className: "min-h-[120px]",
+						value: memoryShown,
+						placeholder: memStreaming ? "正在总结…" : "还没有长期记忆。对话变长后会自动整理。",
+						onChange: (e) => {
+							if (memStreaming) return;
+							const text = e.target.value;
+							const snaps = chat.memorySnaps ?? [];
+							const last = snaps[snaps.length - 1];
+							patch({
+								memory: text,
+								memorySnaps: last ? [...snaps.slice(0, -1), {
+									...last,
+									text
+								}] : text ? [{
+									covered: chat.memoryUntil || 0,
+									text,
+									foldAt: chat.memoryFoldAt || 0
+								}] : []
+							});
+						}
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-2 flex gap-2",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(GhostBtn, {
+								className: "h-10 w-auto min-w-0 flex-1 whitespace-nowrap px-3 text-[13px]",
+								onClick: () => useApp.getState().toast("已保存"),
+								children: "保存"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(GhostBtn, {
+								className: "h-10 w-auto min-w-0 flex-1 whitespace-nowrap px-3 text-[13px]",
+								onClick: () => {
+									if (locked) return;
+									if (!memReady) {
+										useApp.getState().toast("还不够长，先多聊几轮");
+										return;
+									}
+									setMemPick(true);
+								},
+								children: busy?.kind === "mem" ? "总结中…" : "重新总结"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(GhostBtn, {
+								className: "h-10 w-auto min-w-0 flex-1 whitespace-nowrap px-3 text-[13px]",
+								onClick: () => {
+									invalidateMemory(chat.id);
+									patch(emptyMemory());
+								},
+								children: "清空"
+							})
+						]
+					})
+				]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Modal, {
+				open: memPick,
+				onClose: () => setMemPick(false),
+				title: "重新总结",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+					className: "mb-4 text-[13px] leading-5 text-muted",
+					children: memOk ? "记忆已经齐了。总结到当前只重压最近那一截。" : "记忆还落后。总结到当前会从缺口一次收到位。"
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "flex flex-col gap-2",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PrimaryBtn, {
+						disabled: locked || !memReady,
+						busy: busy?.kind === "mem",
+						onClick: async () => {
+							if (locked) return;
+							setMemPick(false);
+							setBusy({ kind: "mem" });
+							if (await runManualMemory(chat.id, "current")) useApp.getState().toast("已总结到当前");
+							setBusy(null);
+						},
+						children: "总结到当前"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(GhostBtn, {
+						className: "h-11",
+						disabled: locked || !memReady,
+						onClick: async () => {
+							if (locked) return;
+							setMemPick(false);
+							setBusy({ kind: "mem" });
+							if (await runManualMemory(chat.id, "all")) useApp.getState().toast("已全部重新总结");
+							setBusy(null);
+						},
+						children: "全部重新总结"
+					})]
+				})]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "pointer-events-none h-4" }),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "fixed inset-x-0 bottom-0 z-20 mx-auto max-w-lg bg-gradient-to-t from-bg via-bg to-transparent px-4 pb-[calc(env(safe-area-inset-bottom)+12px)] pt-4",
+				children: [
+					mode === "create" && !polished && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PrimaryBtn, {
+						busy: busy?.kind === "all" || busy?.kind === "field",
+						disabled: locked && busy?.kind !== "all" && busy?.kind !== "field",
+						onClick: () => {
+							if (locked) return;
+							runPolish();
+						},
+						children: busy?.kind === "field" ? `完善中(${fieldBusyLabel})` : busy?.kind === "all" ? "完善中" : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Sparkles, { className: "size-4" }), " 让 Grok 完善设定"] })
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(GhostBtn, {
+						className: "mt-2",
+						disabled: locked,
+						onClick: () => void startChat(),
+						children: "跳过，开始聊天"
+					})] }),
+					mode === "create" && polished && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PrimaryBtn, {
+							busy: busy?.kind === "field",
+							disabled: locked,
+							onClick: () => {
+								if (locked) return;
+								startChat();
+							},
+							children: busy?.kind === "field" ? `完善中(${fieldBusyLabel})` : "可以了，开始聊天"
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(GhostBtn, {
+							className: "mt-2",
+							disabled: locked && busy?.kind !== "all",
+							onClick: () => void runPolish(),
+							children: busy?.kind === "all" ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(LoaderCircle, { className: "size-4 animate-spin" }), " 完善中"] }) : "让 Grok 完善设定"
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(GhostBtn, {
+							className: "mt-2",
+							disabled: locked && busy?.kind !== "personalize",
+							onClick: () => openPersonalize("all"),
+							children: busy?.kind === "personalize" ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(LoaderCircle, { className: "size-4 animate-spin" }), " 完善中"] }) : "让 Grok 个性化修改"
+						})
+					] }),
+					mode === "edit" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PrimaryBtn, {
+							busy: busy?.kind === "field",
+							disabled: locked,
+							onClick: () => {
+								if (locked) return;
+								startChat();
+							},
+							children: busy?.kind === "field" ? `完善中(${fieldBusyLabel})` : "确认保存"
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(GhostBtn, {
+							className: "mt-2",
+							disabled: locked && busy?.kind !== "all",
+							onClick: () => void runPolish(),
+							children: busy?.kind === "all" ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(LoaderCircle, { className: "size-4 animate-spin" }), " 完善中"] }) : "让 Grok 完善设定"
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(GhostBtn, {
+							className: "mt-2",
+							disabled: locked && busy?.kind !== "personalize",
+							onClick: () => openPersonalize("all"),
+							children: busy?.kind === "personalize" ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(LoaderCircle, { className: "size-4 animate-spin" }), " 完善中"] }) : "让 Grok 个性化修改"
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+							className: "mt-2 w-full py-2 text-[13px] text-muted",
+							onClick: () => useApp.getState().cancelEdit(),
+							children: "取消"
+						})
+					] }),
+					mode === "create" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+						className: "mt-2 w-full py-2 text-[13px] text-muted",
+						onClick: () => useApp.getState().cancelDraft(),
+						children: "取消"
+					})
+				]
+			})
+		]
+	});
+}
+function FieldBlock({ label, hint, value, placeholder, onChange, onRegen, onPersonal, busy, locked, single, titleExtra, grow }) {
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
+		className: "mb-3",
+		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FieldLabel, {
+			hint,
+			right: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+				className: "flex gap-1",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+					className: "grid size-8 place-items-center rounded-full hover:bg-dim disabled:opacity-40",
+					onClick: onRegen,
+					disabled: locked,
+					title: "重新生成",
+					children: busy ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LoaderCircle, { className: "size-4 animate-spin" }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(RefreshCw, { className: "size-4 text-muted" })
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+					className: "grid size-8 place-items-center rounded-full hover:bg-dim disabled:opacity-40",
+					onClick: onPersonal,
+					disabled: locked,
+					title: "个性化",
+					children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Sparkles, { className: "size-4 text-muted" })
+				})]
+			}),
+			children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+				className: "inline-flex items-center gap-1.5",
+				children: [label, titleExtra]
+			})
+		}), single ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TextInput, {
+			value,
+			placeholder,
+			onChange: (e) => onChange(e.target.value)
+		}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TextArea, {
+			value,
+			placeholder,
+			rows: grow ? 12 : 5,
+			className: grow ? "min-h-[calc(1.5rem+12*1.625em)]" : "min-h-[calc(1.5rem+5*1.625em)]",
+			onChange: (e) => onChange(e.target.value)
+		})]
+	});
+}
+function clampCrop(scale, ox, oy, sMin, sMax, diameter, natW, natH) {
+	const s = Math.min(sMax, Math.max(sMin, scale));
+	const limX = Math.max(0, (natW * s - diameter) / 2);
+	const limY = Math.max(0, (natH * s - diameter) / 2);
+	return {
+		scale: s,
+		ox: Math.min(limX, Math.max(-limX, ox)),
+		oy: Math.min(limY, Math.max(-limY, oy))
+	};
+}
+function AvatarCrop({ src, onCancel, onDone }) {
+	const stageRef = (0, import_react.useRef)(null);
+	const imgRef = (0, import_react.useRef)(null);
+	const [box, setBox] = (0, import_react.useState)({
+		w: 0,
+		h: 0
+	});
+	const [nat, setNat] = (0, import_react.useState)({
+		w: 0,
+		h: 0
+	});
+	const [view, setView] = (0, import_react.useState)(null);
+	const [busy, setBusy] = (0, import_react.useState)(false);
+	const pointers = (0, import_react.useRef)(/* @__PURE__ */ new Map());
+	const gesture = (0, import_react.useRef)(null);
+	const diameter = Math.min(box.w, box.h) * .78;
+	const ready = nat.w > 0 && diameter > 0;
+	const sMin = ready ? Math.max(diameter / nat.w, diameter / nat.h) : 1;
+	const sMax = sMin * 4;
+	const shown = view ?? {
+		scale: sMin,
+		ox: 0,
+		oy: 0
+	};
+	const viewRef = (0, import_react.useRef)(shown);
+	viewRef.current = shown;
+	const geo = (0, import_react.useRef)({
+		sMin,
+		sMax,
+		diameter,
+		natW: nat.w,
+		natH: nat.h
+	});
+	geo.current = {
+		sMin,
+		sMax,
+		diameter,
+		natW: nat.w,
+		natH: nat.h
+	};
+	(0, import_react.useEffect)(() => {
+		const el = stageRef.current;
+		if (!el) return;
+		const measure = () => setBox({
+			w: el.clientWidth,
+			h: el.clientHeight
+		});
+		measure();
+		const ro = new ResizeObserver(measure);
+		ro.observe(el);
+		return () => ro.disconnect();
+	}, []);
+	(0, import_react.useEffect)(() => {
+		setView((v) => {
+			const g = geo.current;
+			if (!v || !g.natW || !g.diameter) return v;
+			const next = clampCrop(v.scale, v.ox, v.oy, g.sMin, g.sMax, g.diameter, g.natW, g.natH);
+			if (next.scale === v.scale && next.ox === v.ox && next.oy === v.oy) return v;
+			viewRef.current = next;
+			return next;
+		});
+	}, [
+		box.w,
+		box.h,
+		nat.w,
+		nat.h
+	]);
+	const apply = (scale, ox, oy) => {
+		const g = geo.current;
+		const next = clampCrop(scale, ox, oy, g.sMin, g.sMax, g.diameter, g.natW, g.natH);
+		viewRef.current = next;
+		setView(next);
+	};
+	const begin = () => {
+		const pts = [...pointers.current.values()];
+		const v = viewRef.current;
+		if (pts.length >= 2) {
+			const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) || 1;
+			gesture.current = {
+				ox: v.ox,
+				oy: v.oy,
+				scale: v.scale,
+				x: 0,
+				y: 0,
+				dist,
+				mx: (pts[0].x + pts[1].x) / 2,
+				my: (pts[0].y + pts[1].y) / 2
+			};
+		} else if (pts.length === 1) gesture.current = {
+			ox: v.ox,
+			oy: v.oy,
+			scale: v.scale,
+			x: pts[0].x,
+			y: pts[0].y,
+			dist: 0,
+			mx: pts[0].x,
+			my: pts[0].y
+		};
+		else gesture.current = null;
+	};
+	const onPointerDown = (e) => {
+		if (!ready) return;
+		e.currentTarget.setPointerCapture(e.pointerId);
+		pointers.current.set(e.pointerId, {
+			x: e.clientX,
+			y: e.clientY
+		});
+		begin();
+	};
+	const onPointerMove = (e) => {
+		if (!pointers.current.has(e.pointerId)) return;
+		pointers.current.set(e.pointerId, {
+			x: e.clientX,
+			y: e.clientY
+		});
+		const g = gesture.current;
+		if (!g) return;
+		const pts = [...pointers.current.values()];
+		if (pts.length >= 2) {
+			const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) || 1;
+			const mx = (pts[0].x + pts[1].x) / 2;
+			const my = (pts[0].y + pts[1].y) / 2;
+			const scale = g.scale * (dist / g.dist);
+			const k = scale / g.scale;
+			apply(scale, g.ox * k + (mx - g.mx), g.oy * k + (my - g.my));
+		} else apply(g.scale, g.ox + (e.clientX - g.x), g.oy + (e.clientY - g.y));
+	};
+	const onPointerUp = (e) => {
+		pointers.current.delete(e.pointerId);
+		begin();
+	};
+	(0, import_react.useEffect)(() => {
+		const el = stageRef.current;
+		if (!el) return;
+		const onWheel = (e) => {
+			if (!geo.current.natW) return;
+			e.preventDefault();
+			const v = viewRef.current;
+			const factor = e.deltaY < 0 ? 1.06 : 1 / 1.06;
+			const g = geo.current;
+			const next = clampCrop(v.scale * factor, v.ox * factor, v.oy * factor, g.sMin, g.sMax, g.diameter, g.natW, g.natH);
+			viewRef.current = next;
+			setView(next);
+		};
+		el.addEventListener("wheel", onWheel, { passive: false });
+		return () => el.removeEventListener("wheel", onWheel);
+	}, []);
+	const finish = () => {
+		const img = imgRef.current;
+		const g = geo.current;
+		if (!img || !g.natW || !g.diameter || busy) return;
+		setBusy(true);
+		const { scale, ox, oy } = viewRef.current;
+		const dw = g.natW * scale;
+		const dh = g.natH * scale;
+		const sw = g.diameter / scale;
+		const sh = g.diameter / scale;
+		const sx = Math.max(0, Math.min(g.natW - sw, ((dw - g.diameter) / 2 - ox) / scale));
+		const sy = Math.max(0, Math.min(g.natH - sh, ((dh - g.diameter) / 2 - oy) / scale));
+		const canvas = document.createElement("canvas");
+		canvas.width = 512;
+		canvas.height = 512;
+		const ctx = canvas.getContext("2d");
+		if (!ctx) {
+			setBusy(false);
+			return;
+		}
+		ctx.drawImage(img, sx, sy, sw, sh, 0, 0, 512, 512);
+		canvas.toBlob((blob) => {
+			if (!blob) {
+				setBusy(false);
+				return;
+			}
+			onDone(blob);
+		}, "image/jpeg", .9);
+	};
+	const dw = nat.w * shown.scale;
+	const dh = nat.h * shown.scale;
+	const cx = box.w / 2;
+	const cy = box.h / 2;
+	return (0, import_react_dom.createPortal)(/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		className: "fixed inset-0 z-[100] flex flex-col bg-black text-white",
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "flex shrink-0 items-center px-1 pt-[max(8px,env(safe-area-inset-top))]",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+						type: "button",
+						className: "grid size-11 place-items-center",
+						"aria-label": "返回",
+						onClick: onCancel,
+						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChevronLeft, { className: "size-6" })
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "flex-1 text-center text-[16px]",
+						children: "移动和缩放"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "size-11" })
+				]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				ref: stageRef,
+				className: "relative min-h-0 flex-1 touch-none overflow-hidden",
+				onPointerDown,
+				onPointerMove,
+				onPointerUp,
+				onPointerCancel: onPointerUp,
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+					ref: imgRef,
+					src,
+					alt: "",
+					draggable: false,
+					onLoad: (e) => setNat({
+						w: e.currentTarget.naturalWidth,
+						h: e.currentTarget.naturalHeight
+					}),
+					onError: onCancel,
+					className: "absolute max-w-none select-none",
+					style: {
+						width: dw || void 0,
+						height: dh || void 0,
+						left: cx + shown.ox - dw / 2,
+						top: cy + shown.oy - dh / 2,
+						opacity: ready ? 1 : 0
+					}
+				}), ready ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+					className: "pointer-events-none absolute rounded-full border border-white/90",
+					style: {
+						width: diameter,
+						height: diameter,
+						left: cx - diameter / 2,
+						top: cy - diameter / 2,
+						boxShadow: "0 0 0 9999px rgba(0,0,0,0.55)"
+					}
+				}) : null]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				className: "flex shrink-0 justify-end px-4 pb-[max(16px,env(safe-area-inset-bottom))] pt-3",
+				children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+					type: "button",
+					className: "rounded-full bg-primary px-6 py-2 text-[15px] text-on-primary disabled:opacity-40",
+					disabled: !ready || busy,
+					onClick: finish,
+					children: "完成"
+				})
+			})
+		]
+	}), document.body);
+}
+function CustomAvatar({ blobId, onId, onClear, label = "自定义头像。不上传就用第一张生成的图" }) {
+	const [url, setUrl] = (0, import_react.useState)(null);
+	const [crop, setCrop] = (0, import_react.useState)(null);
+	(0, import_react.useEffect)(() => {
+		if (!blobId) {
+			setUrl(null);
+			return;
+		}
+		let dead = false;
+		imageUrl(blobId).then((u) => {
+			if (!dead) setUrl(u);
+		});
+		return () => {
+			dead = true;
+		};
+	}, [blobId]);
+	(0, import_react.useEffect)(() => {
+		return () => {
+			if (crop) URL.revokeObjectURL(crop);
+		};
+	}, [crop]);
+	const openCrop = (blob) => {
+		setCrop((prev) => {
+			if (prev) URL.revokeObjectURL(prev);
+			return URL.createObjectURL(blob);
+		});
+	};
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		className: "mt-3 flex items-center gap-2",
+		children: [
+			url ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "relative",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ZoomImg, {
+					src: url,
+					className: "size-16 rounded-full object-cover"
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+					type: "button",
+					className: "absolute -right-1 -top-1 z-10 grid size-5 place-items-center rounded-full bg-card text-ink",
+					"aria-label": "去掉自定义头像",
+					onClick: onClear,
+					children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(X, { className: "size-3" })
+				})]
+			}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ImagePick, {
+				onFile: (file) => openCrop(file),
+				onBlob: async (id) => {
+					const blob = await getImage(id);
+					if (!blob) {
+						useApp.getState().toast("这张图已经不在了");
+						return;
+					}
+					openCrop(blob);
+				},
+				render: (open) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+					type: "button",
+					className: "grid size-9 place-items-center rounded-full border border-line text-muted",
+					"aria-label": "上传自定义头像",
+					onClick: open,
+					children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Plus, { className: "size-4" })
+				})
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+				className: "text-[12px] text-muted",
+				children: label
+			}),
+			crop ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AvatarCrop, {
+				src: crop,
+				onCancel: () => setCrop(null),
+				onDone: (blob) => {
+					saveBlob(blob).then(onId);
+					setCrop(null);
+				}
+			}) : null
+		]
+	});
+}
+function LookRef({ blobId, onPick, onBlob, onClear }) {
+	const [url, setUrl] = (0, import_react.useState)(null);
+	(0, import_react.useEffect)(() => {
+		if (!blobId) {
+			setUrl(null);
+			return;
+		}
+		let dead = false;
+		imageUrl(blobId).then((u) => {
+			if (!dead) setUrl(u);
+		});
+		return () => {
+			dead = true;
+		};
+	}, [blobId]);
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		className: "mb-3 flex items-center gap-2 px-1",
+		children: [url ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+			className: "relative",
+			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ZoomImg, {
+				src: url,
+				className: "size-16 rounded-[12px] object-cover"
+			}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+				type: "button",
+				className: "absolute -right-1 -top-1 z-10 grid size-5 place-items-center rounded-full bg-card text-ink",
+				"aria-label": "去掉外貌备忘",
+				onClick: onClear,
+				children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(X, { className: "size-3" })
+			})]
+		}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ImagePick, {
+			onFile: onPick,
+			onBlob,
+			render: (open) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+				type: "button",
+				className: "grid size-9 place-items-center rounded-full border border-line text-muted",
+				"aria-label": "上传外貌备忘",
+				onClick: open,
+				children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Plus, { className: "size-4" })
+			})
+		}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+			className: "text-[12px] text-muted",
+			children: "外貌备忘的样子，只给聊天看"
+		})]
+	});
+}
+function Extras({ extras, onChange }) {
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		className: "mb-3",
+		children: [extras.map((e, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
+			className: "mb-2",
+			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "mb-1 flex items-center justify-between gap-2",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "text-[13px] font-medium",
+					children: ["新增", i + 1]
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "flex items-center gap-2",
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+							type: "button",
+							className: `rounded-full border px-2 py-0.5 text-[11px] leading-none transition ${e.emphasize ? "border-primary bg-primary text-on-primary" : "border-primary bg-transparent text-primary"}`,
+							onClick: () => onChange(extras.map((x) => x.id === e.id ? {
+								...x,
+								emphasize: !x.emphasize
+							} : x)),
+							children: "强调"
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+							type: "button",
+							className: `rounded-full border px-2 py-0.5 text-[11px] leading-none transition ${e.applyImage ? "border-primary bg-primary text-on-primary" : "border-primary bg-transparent text-primary"}`,
+							onClick: () => onChange(extras.map((x) => x.id === e.id ? {
+								...x,
+								applyImage: !x.applyImage
+							} : x)),
+							children: "应用到生图"
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+							className: "text-danger",
+							onClick: () => onChange(extras.filter((x) => x.id !== e.id)),
+							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Trash2, { className: "size-4" })
+						})
+					]
+				})]
+			}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TextArea, {
+				value: e.body,
+				onChange: (ev) => onChange(extras.map((x) => x.id === e.id ? {
+					...x,
+					body: ev.target.value
+				} : x))
+			})]
+		}, e.id)), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+			className: "flex items-center gap-1 px-2 py-2 text-[13px] text-primary",
+			onClick: () => onChange([...extras, {
+				id: uid("ex_"),
+				body: ""
+			}]),
+			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Plus, { className: "size-4" }), " 新增"]
+		})]
+	});
+}
+function CardSelect({ onPick, onEdit }) {
+	const ordered = useApp((s) => s.cards).slice().sort((a, b) => a.order - b.order);
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LibraryDrawer, {
+		className: "flex-1",
+		label: "角色卡选择",
+		items: ordered.map((c) => ({
+			id: c.id,
+			name: c.name
+		})),
+		onApply: onPick,
+		onEdit,
+		onDelete: (id) => useApp.getState().deleteCard(id),
+		onReorder: (ids) => useApp.getState().reorderCards(ids)
+	});
+}
+function CardEditSheet() {
+	const id = useApp((s) => s.ui.editCardId);
+	const [draft, setDraft] = (0, import_react.useState)(null);
+	const [charSel, setCharSel] = (0, import_react.useState)(0);
+	const opened = (0, import_react.useRef)(null);
+	const openedName = (0, import_react.useRef)("");
+	(0, import_react.useEffect)(() => {
+		if (!id) {
+			opened.current = null;
+			setDraft(null);
+			return;
+		}
+		if (opened.current === id) return;
+		const card = useApp.getState().cards.find((c) => c.id === id);
+		if (!card) return;
+		opened.current = id;
+		openedName.current = card.name;
+		setDraft(structuredClone(card));
+		setCharSel(0);
+	}, [id]);
+	if (!id || !draft) return null;
+	const close = () => useApp.getState().setUI({ editCardId: null });
+	const char = draft.characters[charSel] ?? draft.characters[0];
+	const patchChar = (charId, p) => {
+		setDraft((d) => d ? {
+			...d,
+			characters: d.characters.map((c) => c.id === charId ? {
+				...c,
+				...p
+			} : c)
+		} : d);
+	};
+	const save = () => {
+		const name = draft.name.trim() || openedName.current;
+		useApp.getState().updateCard({
+			...draft,
+			name
+		});
+		close();
+	};
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		className: "absolute inset-0 z-[60] flex justify-center px-4 py-8",
+		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "absolute inset-0 bg-overlay/40" }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+			className: "relative z-10 flex min-h-0 w-full max-w-md flex-col overflow-hidden rounded-[28px] bg-bg shadow-2xl",
+			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "flex shrink-0 items-center gap-2 px-5 pb-3 pt-5",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+						className: "text-[20px] font-semibold",
+						children: "修改"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+						type: "button",
+						className: "ml-auto text-[15px] text-primary",
+						onClick: save,
+						children: "保存"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+						type: "button",
+						className: "grid size-8 place-items-center",
+						onClick: close,
+						"aria-label": "关闭",
+						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(X, { className: "size-5" })
+					})
+				]
+			}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-8 scroll-hide",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
+						className: "mb-3",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FieldLabel, {
+							hint: "列表里显示的名字。和下面角色的名字不是同一个。",
+							children: "卡名"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TextInput, {
+							value: draft.name,
+							placeholder: "卡名",
+							onChange: (e) => setDraft((d) => d ? {
+								...d,
+								name: e.target.value
+							} : d)
+						})]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mb-4 flex items-center gap-2 text-[14px]",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
+							className: "flex items-center gap-2",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+									className: `grid size-5 place-items-center rounded-full border ${draft.isMulti ? "border-primary bg-primary text-on-primary" : "border-line-strong bg-card"}`,
+									children: draft.isMulti && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+										className: "text-[11px] leading-none",
+										children: "✓"
+									})
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+									type: "checkbox",
+									className: "sr-only",
+									checked: draft.isMulti,
+									onChange: (e) => {
+										const on = e.target.checked;
+										setCharSel(0);
+										setDraft((d) => {
+											if (!d) return d;
+											const characters = on ? d.characters.length >= 2 ? d.characters : [...d.characters, emptyCharacter(d.characters.length + 1)] : [d.characters[0] ?? emptyCharacter(1)];
+											return {
+												...d,
+												isMulti: on,
+												characters
+											};
+										});
+									}
+								}),
+								"多人"
+							]
+						}), draft.isMulti && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+							className: "ml-auto inline-flex items-center gap-1 text-[13px] text-muted",
+							children: ["人数", /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+								className: "inline-flex items-center rounded-full border border-line bg-card",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+										type: "button",
+										className: "px-2 py-1",
+										onClick: () => {
+											setDraft((d) => d ? {
+												...d,
+												characters: [...d.characters, emptyCharacter(d.characters.length + 1)]
+											} : d);
+										},
+										children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChevronUp, { className: "size-3.5" })
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+										className: "px-2 text-ink",
+										children: draft.characters.length
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+										type: "button",
+										className: "px-2 py-1",
+										disabled: draft.characters.length <= 2,
+										onClick: () => {
+											setCharSel(0);
+											setDraft((d) => d ? {
+												...d,
+												characters: d.characters.slice(0, -1)
+											} : d);
+										},
+										children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChevronDown, { className: "size-3.5" })
+									})
+								]
+							})]
+						})]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
+						className: "mb-3",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FieldLabel, { children: "AI 版本" }),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ExpandSelect, {
+								value: draft.grokModelId,
+								options: GROK_MODELS$1.map((m) => ({
+									id: m.id,
+									label: m.label,
+									short: m.short
+								})),
+								onChange: (grokModelId) => setDraft((d) => d ? {
+									...d,
+									grokModelId
+								} : d),
+								align: "left",
+								className: "w-full rounded-full border border-line bg-card"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CustomAvatar, {
+								blobId: draft.customAvatarBlobId,
+								onId: (customAvatarBlobId) => setDraft((d) => d ? {
+									...d,
+									customAvatarBlobId
+								} : d),
+								onClear: () => setDraft((d) => d ? {
+									...d,
+									customAvatarBlobId: ""
+								} : d)
+							})
+						]
+					}),
+					!draft.isMulti && char ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PlainField, {
+						label: "名字",
+						hint: "可空，让 Grok 起",
+						value: char.name,
+						placeholder: PLACEHOLDERS.name,
+						single: true,
+						onChange: (v) => patchChar(char.id, { name: v })
+					}) : null,
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PlainField, {
+						label: "要求总览",
+						hint: "可空。写了就是最高优先。例如：回复尽量详尽生动，不要简略。",
+						value: draft.overview,
+						placeholder: PLACEHOLDERS.overview,
+						onChange: (overview) => setDraft((d) => d ? {
+							...d,
+							overview
+						} : d)
+					}),
+					draft.isMulti && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
+						className: "mb-3",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FieldLabel, { children: "角色选择" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ExpandSelect, {
+							value: String(Math.min(charSel, Math.max(0, draft.characters.length - 1))),
+							options: draft.characters.map((c, i) => ({
+								id: String(i),
+								label: `角色${i + 1}${c.name ? ":" + c.name : ""}`
+							})),
+							onChange: (next) => setCharSel(Number(next)),
+							align: "left"
+						})]
+					}),
+					char && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: draft.isMulti ? "mb-3 rounded-[22px] border border-line/80 bg-card/50 p-1" : "",
+						children: [
+							draft.isMulti && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PlainField, {
+								label: "名字",
+								hint: "可空，让 Grok 起",
+								value: char.name,
+								placeholder: PLACEHOLDERS.name,
+								single: true,
+								onChange: (v) => patchChar(char.id, { name: v })
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PlainField, {
+								label: "人设",
+								hint: "她是谁：性格、职业或身份、口头禅、和我的关系……外貌请写在下面那栏。",
+								value: char.persona,
+								placeholder: PLACEHOLDERS.persona,
+								grow: Boolean(char.personaVoices),
+								titleExtra: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+									type: "button",
+									className: `rounded-full border px-2 py-0.5 text-[11px] leading-none transition ${char.personaVoices ? "border-primary bg-primary text-on-primary" : "border-primary bg-transparent text-primary"}`,
+									onClick: () => patchChar(char.id, { personaVoices: !char.personaVoices }),
+									children: "声部"
+								}),
+								onChange: (v) => patchChar(char.id, { persona: v })
+							}),
+							draft.isMulti ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "mb-3 px-1",
+								children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CustomAvatar, {
+									blobId: char.wechatAvatarBlobId,
+									label: "自定义微信头像。不上传就用主聊天的头像",
+									onId: (wechatAvatarBlobId) => patchChar(char.id, { wechatAvatarBlobId }),
+									onClear: () => patchChar(char.id, { wechatAvatarBlobId: "" })
+								})
+							}) : null,
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PlainField, {
+								label: "说话方式",
+								hint: "语气、口癖、人称、句子长短。例如：软软的、会把「……」拖长。",
+								value: char.speech,
+								placeholder: PLACEHOLDERS.speech,
+								onChange: (v) => patchChar(char.id, { speech: v })
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(LookRef, {
+								blobId: char.lookBlobId,
+								onPick: async (file) => {
+									const lookBlobId = await saveBlob(await compressRef(file, 768, .82));
+									patchChar(char.id, { lookBlobId });
+								},
+								onBlob: async (blobId) => {
+									const blob = await getImage(blobId);
+									if (!blob) {
+										useApp.getState().toast("这张图已经不在了");
+										return;
+									}
+									const lookBlobId = await saveBlob(blob);
+									patchChar(char.id, { lookBlobId });
+								},
+								onClear: () => patchChar(char.id, { lookBlobId: "" })
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PlainField, {
+								label: "外貌备忘",
+								hint: "用生图提示词书写。发型发色瞳色体型固定服装写这里。其他栏不用再写外貌。",
+								value: char.appearance,
+								placeholder: PLACEHOLDERS.appearance,
+								onChange: (v) => patchChar(char.id, { appearance: v })
+							})
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PlainField, {
+						label: "开场场景",
+						hint: "现在在哪里、在做什么、气氛如何。",
+						value: draft.opening,
+						placeholder: PLACEHOLDERS.opening,
+						onChange: (opening) => setDraft((d) => d ? {
+							...d,
+							opening
+						} : d)
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
+						className: "mb-3",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "mb-2 flex items-center justify-between",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "text-[13px] font-medium",
+								children: "状态栏"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "mt-0.5 text-[11px] text-muted",
+								children: "关掉就折叠。打开后，每句回复末尾都会更新这份状态。开启内容按固定骨架，可改冒号后的描述。"
+							})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Switch, {
+								on: draft.statusBarOn,
+								onChange: (v) => setDraft((d) => d ? {
+									...d,
+									statusBarOn: v,
+									statusBar: d.statusBar?.trim() ? d.statusBar : DEFAULT_STATUS_BAR
+								} : d)
+							})]
+						}), draft.statusBarOn && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TextArea, {
+							className: "min-h-[200px] font-mono text-[12px]",
+							value: draft.statusBar,
+							onChange: (e) => setDraft((d) => d ? {
+								...d,
+								statusBar: e.target.value
+							} : d)
+						})]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Extras, {
+						extras: draft.extras,
+						onChange: (extras) => setDraft((d) => d ? {
+							...d,
+							extras
+						} : d)
+					})
+				]
+			})]
+		})]
+	});
+}
+function PlainField({ label, hint, value, placeholder, onChange, single, titleExtra, grow }) {
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
+		className: "mb-3",
+		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FieldLabel, {
+			hint,
+			children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+				className: "inline-flex items-center gap-1.5",
+				children: [label, titleExtra]
+			})
+		}), single ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TextInput, {
+			value,
+			placeholder,
+			onChange: (e) => onChange(e.target.value)
+		}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TextArea, {
+			value,
+			placeholder,
+			rows: grow ? 12 : 5,
+			className: grow ? "min-h-[calc(1.5rem+12*1.625em)]" : "min-h-[calc(1.5rem+5*1.625em)]",
+			onChange: (e) => onChange(e.target.value)
+		})]
+	});
+}
+function AppearEditSheet() {
+	const id = useApp((s) => s.ui.editAppearId);
+	const [draft, setDraft] = (0, import_react.useState)(null);
+	const opened = (0, import_react.useRef)(null);
+	const openedName = (0, import_react.useRef)("");
+	(0, import_react.useEffect)(() => {
+		if (!id) {
+			opened.current = null;
+			setDraft(null);
+			return;
+		}
+		if (opened.current === id) return;
+		const row = useApp.getState().appearances.find((a) => a.id === id);
+		if (!row) return;
+		opened.current = id;
+		openedName.current = row.name;
+		setDraft({ ...row });
+	}, [id]);
+	if (!id || !draft) return null;
+	const close = () => useApp.getState().setUI({ editAppearId: null });
+	const save = () => {
+		useApp.getState().updateAppearance(draft.id, draft.name.trim() || openedName.current, draft.prompt);
+		close();
+	};
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		className: "absolute inset-0 z-[70] flex justify-center px-4 py-8",
+		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "absolute inset-0 bg-overlay/40" }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+			className: "relative z-10 flex min-h-0 w-full max-w-md flex-col overflow-hidden rounded-[28px] bg-bg shadow-2xl",
+			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "flex shrink-0 items-center gap-2 px-5 pb-3 pt-5",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+						className: "text-[20px] font-semibold",
+						children: "修改"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+						type: "button",
+						className: "ml-auto text-[15px] text-primary",
+						onClick: save,
+						children: "保存"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+						type: "button",
+						className: "grid size-8 place-items-center",
+						onClick: close,
+						"aria-label": "关闭",
+						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(X, { className: "size-5" })
+					})
+				]
+			}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-8 scroll-hide",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
+					className: "mb-3",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FieldLabel, {
+						hint: "列表里显示的名字。",
+						children: "名字"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TextInput, {
+						value: draft.name,
+						placeholder: "名字",
+						onChange: (e) => setDraft((d) => d ? {
+							...d,
+							name: e.target.value
+						} : d)
+					})]
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
+					className: "mb-3",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FieldLabel, {
+						hint: "保存后不会改你现在参数里已经写着的词。要点「应用」才换上。",
+						children: "正面提示词"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TextArea, {
+						value: draft.prompt,
+						rows: 12,
+						className: "min-h-[calc(1.5rem+12*1.625em)]",
+						onChange: (e) => setDraft((d) => d ? {
+							...d,
+							prompt: e.target.value
+						} : d)
+					})]
+				})]
+			})]
+		})]
+	});
+}
+function esc(s) {
+	return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+function stripEndTag(s, tag) {
+	const core = tag.replace(/,\s*$/, "").trim();
+	const re = new RegExp(`(?:^|,)?\\s*${esc(core)}\\s*,?\\s*$`, "i");
+	let cur = s.trimEnd();
+	for (let i = 0; i < 4; i++) {
+		const next = cur.replace(re, "").replace(/[,\s]+$/g, "").trimEnd();
+		if (next === cur) break;
+		cur = next;
+	}
+	return cur;
+}
+function appendTag(s, tag) {
+	const t = s.trimEnd();
+	if (!t) return tag;
+	if (t.endsWith(",")) return `${t} ${tag}`;
+	return `${t}, ${tag}`;
+}
+var SENSITIVE_RE = /^\s*rating:\s*sensitive,\s*nsfw,\s*uncensored,\s*/i;
+function stripSensitivePrefix(s) {
+	return s.replace(SENSITIVE_RE, "").replace(/^\s+/, "");
+}
+function applyFrontFlags(front, uncensored, fullBody) {
+	let s = stripEndTag(stripEndTag(front, FULLBODY_TAG), UNCENSORED_TAG);
+	if (uncensored) s = appendTag(s, UNCENSORED_TAG);
+	if (fullBody) s = appendTag(s, FULLBODY_TAG);
+	return s;
+}
+function applyBackFlags(back, sensitive) {
+	const rest = stripSensitivePrefix(back);
+	if (!sensitive) return rest;
+	return rest ? `${SENSITIVE_PREFIX} ${rest}` : SENSITIVE_PREFIX;
+}
+function applyMergedFlags(text, flags) {
+	let s = stripSensitivePrefix(text);
+	s = applyFrontFlags(s, flags.uncensored, flags.fullBody);
+	if (flags.sensitive) s = s ? `${SENSITIVE_PREFIX} ${s}` : SENSITIVE_PREFIX;
+	return s;
 }
 function scrollJump(jump) {
 	const el = document.querySelector(`[data-section="${jump}"]`);
@@ -12167,7 +13988,8 @@ function AppearSelect({ className, onPick }) {
 			if (a) onPick(a);
 		},
 		onDelete: (id) => useApp.getState().deleteAppearance(id),
-		onReorder: (ids) => useApp.getState().reorderAppearances(ids)
+		onReorder: (ids) => useApp.getState().reorderAppearances(ids),
+		onEdit: (id) => useApp.getState().setUI({ editAppearId: id })
 	});
 }
 function ImageAiPicker() {
@@ -12610,7 +14432,7 @@ function PurePane() {
 					})] })]
 				}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 					className: "grid h-full place-items-center px-8 text-center text-[13px] text-stage-muted",
-					children: "还没有图。先去参数里写提示词，再点绘一张。"
+					children: "还没有图。先去参数里写提示词，再点绘图。"
 				})
 			}),
 			item && !peek && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -12705,7 +14527,7 @@ function PurePane() {
 								setViewId(id);
 							});
 						},
-						children: phase ? "取消" : "绘一张"
+						children: phase ? "取消" : "绘图"
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(IconBtn, {
 						className: "text-on-stage",
@@ -12726,7 +14548,21 @@ function PurePane() {
 					})
 				]
 			}),
-			sheet === "params" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PureParamsSheet, { onClose: closeSheet }),
+			sheet === "params" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PureParamsSheet, {
+				phase,
+				left,
+				onDraw: () => {
+					if (phase) {
+						cancelPureDraw();
+						return;
+					}
+					drawOne(setPhase, (id) => {
+						setPeekId(null);
+						setViewId(id);
+					});
+				},
+				onClose: closeSheet
+			}),
 			sheet === "fav" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(FavSheet, {
 				currentBlob: item?.blobId,
 				previewId: peekId,
@@ -13927,21 +15763,32 @@ function HistCell({ item, active, onPreview }) {
 		]
 	});
 }
-function PureParamsSheet({ onClose }) {
+function PureParamsSheet({ onClose, phase, left, onDraw }) {
 	const chat = fakePureChat(useApp((s) => s.pureParams), useApp((s) => s.settings.grokModelId));
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 		className: "absolute inset-0 z-30 flex flex-col bg-overlay/40",
 		children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 			className: "mt-10 flex min-h-0 flex-1 flex-col overflow-hidden rounded-t-[28px] bg-bg text-ink",
 			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				className: "flex shrink-0 items-center justify-between px-4 py-3",
-				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-					className: "font-serif text-[18px]",
-					children: "参数设置"
-				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-					onClick: onClose,
-					children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(X, { className: "size-5" })
-				})]
+				className: "relative flex h-12 shrink-0 items-center px-4",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "font-serif text-[18px] leading-none",
+						children: "参数设置"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+						type: "button",
+						className: "absolute left-1/2 top-1/2 inline-flex h-[18px] min-w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-primary px-2.5 text-[13px] leading-none text-on-primary",
+						onClick: onDraw,
+						children: phase ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LoaderCircle, { className: "size-3.5 animate-spin" }) : left > 0 ? `${left}s` : "绘图"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+						className: "ml-auto",
+						onClick: onClose,
+						"aria-label": "关闭",
+						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(X, { className: "size-5" })
+					})
+				]
 			}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				className: "min-h-0 flex-1 overflow-y-auto",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
@@ -14064,1090 +15911,6 @@ async function drawOne(setPhase, showId) {
 		drawing = false;
 		setPhase(null);
 	}
-}
-function RoleEditor({ chat, mode }) {
-	const grok = useApp((s) => s.settings.grokModelId);
-	const cards = useApp((s) => s.cards);
-	const [busy, setBusy] = (0, import_react.useState)(null);
-	const [polished, setPolished] = (0, import_react.useState)(false);
-	const [charSel, setCharSel] = (0, import_react.useState)(0);
-	const [memPick, setMemPick] = (0, import_react.useState)(false);
-	const patch = (p) => useApp.getState().patchChat(chat.id, p);
-	const char = chat.characters[charSel] ?? chat.characters[0];
-	const autoPolish = useApp((s) => s.ui.autoPolish);
-	const polishJob = useApp((s) => s.ui.polishJob);
-	const busyRef = (0, import_react.useRef)(false);
-	const locked = !!busy;
-	const memTurns = memoryTurnStats(chat.messages.length, chat.memoryUntil);
-	const { W, I } = foldWindow();
-	const memOk = memoryCaughtUp(chat.messages.length, chat.memoryUntil || 0, W, I);
-	const memReady = foldCoveredEnd(chat.messages.length, W, I) >= 2;
-	const memoryHint = useApp((s) => s.ui.memoryHint);
-	const memStreaming = memoryHint?.chatId === chat.id && memoryHint.state === "generating";
-	const memoryShown = memStreaming && memoryHint.draft != null ? memoryHint.draft : chat.memory;
-	const fieldBusyLabel = busy?.kind === "field" ? FIELD_LABELS[busy.key] || busy.key : "";
-	const syncChars = (characters, isMulti = chat.isMulti) => patch({
-		characters,
-		isMulti,
-		imageParams: syncCharsFromRole(chat.imageParams, characters, isMulti)
-	});
-	const runPolish = async (instruction, mark = "all") => {
-		if (busyRef.current) return;
-		busyRef.current = true;
-		setBusy({ kind: mark });
-		try {
-			const json = await polishAll(useApp.getState().chats.find((c) => c.id === chat.id) ?? chat, grok, instruction);
-			useApp.getState().patchChat(chat.id, (c) => {
-				const merged = mergePolish(c, json);
-				return {
-					...c,
-					...merged,
-					imageParams: syncCharsFromRole(c.imageParams, merged.characters, c.isMulti),
-					updatedAt: Date.now()
-				};
-			});
-			setPolished(true);
-			useApp.getState().toast(instruction?.trim() ? "已按要求修改" : "已完善设定");
-		} catch (e) {
-			useApp.getState().toast(e instanceof Error ? e.message : "完善失败");
-		} finally {
-			busyRef.current = false;
-			setBusy(null);
-		}
-	};
-	const runField = async (key, charId, instruction) => {
-		if (busyRef.current) return;
-		busyRef.current = true;
-		setBusy({
-			kind: "field",
-			key,
-			charId
-		});
-		try {
-			const snapshot = useApp.getState().chats.find((c) => c.id === chat.id) ?? chat;
-			const text = await polishField(snapshot, grok, key, instruction, charId, (t) => {
-				if (key !== "persona") return;
-				if (!snapshot.characters.find((c) => c.id === charId)?.personaVoices) return;
-				useApp.getState().patchChat(chat.id, (c) => ({
-					...applyRoleField(c, key, t, charId),
-					updatedAt: Date.now()
-				}));
-			});
-			useApp.getState().patchChat(chat.id, (c) => ({
-				...applyRoleField(c, key, text, charId),
-				updatedAt: Date.now()
-			}));
-			useApp.getState().toast(`已更新${FIELD_LABELS[key] || key}`);
-		} catch (e) {
-			useApp.getState().toast(e instanceof Error ? e.message : "生成失败");
-		} finally {
-			busyRef.current = false;
-			setBusy(null);
-		}
-	};
-	const openPersonalize = (key, charId) => {
-		if (locked) return;
-		useApp.getState().setUI({ fieldEdit: {
-			key,
-			charId,
-			text: ""
-		} });
-	};
-	(0, import_react.useEffect)(() => {
-		if (!autoPolish || mode !== "create") return;
-		useApp.getState().setUI({ autoPolish: false });
-		runPolish();
-	}, [autoPolish]);
-	(0, import_react.useEffect)(() => {
-		if (!polishJob || polishJob.chatId !== chat.id) return;
-		useApp.getState().setUI({ polishJob: null });
-		if (polishJob.kind === "field" && polishJob.key) runField(polishJob.key, polishJob.charId, polishJob.instruction);
-		else runPolish(polishJob.instruction, "personalize");
-	}, [polishJob]);
-	const startChat = async () => {
-		const name = chat.characters.map((c) => c.name).filter(Boolean).join("、") || chat.name || "未命名";
-		useApp.getState().patchChat(chat.id, (c) => ({
-			...c,
-			name,
-			isDraft: false,
-			imageParams: syncCharsFromRole(c.imageParams, c.characters, c.isMulti)
-		}));
-		useApp.getState().commitChat(chat.id);
-		if (mode === "create") {
-			const { sendOpening } = await import("./chat-actions-DO1JNA53.mjs");
-			sendOpening(chat.id);
-		} else useApp.getState().toast("设定已保存");
-	};
-	const nameBlock = char ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(FieldBlock, {
-		label: "名字",
-		hint: "可空，让 Grok 起",
-		value: char.name,
-		placeholder: PLACEHOLDERS.name,
-		single: true,
-		busy: busy?.kind === "field" && busy.key === "name" && busy.charId === char.id,
-		locked,
-		onChange: (v) => useApp.getState().patchChat(chat.id, (c) => {
-			const characters = c.characters.map((x) => x.id === char.id ? {
-				...x,
-				name: v
-			} : x);
-			return {
-				...c,
-				characters,
-				imageParams: {
-					...c.imageParams,
-					characters: c.imageParams.characters.map((slot) => slot.id === char.id ? {
-						...slot,
-						name: v
-					} : slot)
-				},
-				updatedAt: Date.now()
-			};
-		}),
-		onRegen: () => runField("name", char.id),
-		onPersonal: () => openPersonalize("name", char.id)
-	}) : null;
-	const overviewBlock = /* @__PURE__ */ (0, import_jsx_runtime.jsx)(FieldBlock, {
-		label: "要求总览",
-		hint: "可空。写了就是最高优先。例如：回复尽量详尽生动，不要简略。",
-		value: chat.overview,
-		placeholder: PLACEHOLDERS.overview,
-		busy: busy?.kind === "field" && busy.key === "overview",
-		locked,
-		onChange: (v) => patch({ overview: v }),
-		onRegen: () => runField("overview"),
-		onPersonal: () => openPersonalize("overview")
-	});
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-		className: "h-full overflow-y-auto px-4 pb-56 pt-3 scroll-thin",
-		children: [
-			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-				className: "mb-1 text-[11px] tracking-[0.14em] text-muted",
-				children: mode === "create" ? "NEW ROLE" : "EDIT ROLE"
-			}),
-			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", {
-				className: "mb-1 text-[20px] font-semibold",
-				children: mode === "create" ? "写下她，再交给 Grok 补全" : "修改设定"
-			}),
-			mode === "edit" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-				className: "mb-4 text-[12px] text-muted",
-				children: "保存后立刻对之后的对话生效。取消则不改动。"
-			}),
-			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				className: "mb-3 flex items-end gap-2",
-				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-					className: "inline-flex shrink-0 flex-col items-center gap-0.5 px-1 pb-1.5 text-[10px] text-muted",
-					onClick: () => useApp.getState().setUI({ saveCardOpen: true }),
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Download, { className: "size-3.5" }), "保存为角色卡"]
-				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-					className: "min-w-0 flex-1",
-					children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardSelect, { onPick: (id) => {
-						const card = cards.find((c) => c.id === id);
-						if (card) useApp.getState().applyCard(chat.id, card, chat.isMulti ? charSel : void 0);
-					} })
-				})]
-			}),
-			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				className: "mb-4 flex items-center gap-2 text-[14px]",
-				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
-					className: "flex items-center gap-2",
-					children: [
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-							className: `grid size-5 place-items-center rounded-full border ${chat.isMulti ? "border-primary bg-primary text-on-primary" : "border-line-strong bg-card"}`,
-							children: chat.isMulti && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-								className: "text-[11px] leading-none",
-								children: "✓"
-							})
-						}),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
-							type: "checkbox",
-							className: "sr-only",
-							checked: chat.isMulti,
-							onChange: (e) => {
-								const on = e.target.checked;
-								const characters = on ? chat.characters.length >= 2 ? chat.characters : [...chat.characters, emptyCharacter(2)] : [chat.characters[0] ?? emptyCharacter(1)];
-								setCharSel(0);
-								syncChars(characters, on);
-							}
-						}),
-						"多人"
-					]
-				}), chat.isMulti && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-					className: "ml-auto inline-flex items-center gap-1 text-[13px] text-muted",
-					children: ["人数", /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-						className: "inline-flex items-center rounded-full border border-line bg-card",
-						children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-								type: "button",
-								className: "px-2 py-1",
-								onClick: () => {
-									const characters = [...chat.characters, emptyCharacter(chat.characters.length + 1)];
-									syncChars(characters, true);
-								},
-								children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChevronUp, { className: "size-3.5" })
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-								className: "px-2 text-ink",
-								children: chat.characters.length
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-								type: "button",
-								className: "px-2 py-1",
-								disabled: chat.characters.length <= 2,
-								onClick: () => {
-									const characters = chat.characters.slice(0, -1);
-									setCharSel(0);
-									syncChars(characters, true);
-								},
-								children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChevronDown, { className: "size-3.5" })
-							})
-						]
-					})]
-				})]
-			}),
-			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
-				className: "mb-3",
-				children: [
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FieldLabel, { children: "AI 版本" }),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChatModelSelect, {
-						align: "left",
-						className: "w-full rounded-full border border-line bg-card"
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CustomAvatar, {
-						blobId: chat.customAvatarBlobId,
-						onId: (id) => patch({ customAvatarBlobId: id }),
-						onClear: () => patch({ customAvatarBlobId: "" })
-					})
-				]
-			}),
-			!chat.isMulti && nameBlock,
-			overviewBlock,
-			chat.isMulti && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
-				className: "mb-3",
-				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FieldLabel, { children: "角色选择" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ExpandSelect, {
-					value: String(charSel),
-					options: chat.characters.map((c, i) => ({
-						id: String(i),
-						label: `角色${i + 1}${c.name ? ":" + c.name : ""}`
-					})),
-					onChange: (id) => setCharSel(Number(id)),
-					align: "left"
-				})]
-			}),
-			char && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				className: chat.isMulti ? "rounded-[22px] border border-line/80 bg-card/50 p-1" : "",
-				children: [
-					chat.isMulti && nameBlock,
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FieldBlock, {
-						label: "人设",
-						hint: "她是谁：性格、职业或身份、口头禅、和我的关系……外貌请写在下面那栏。",
-						value: char.persona,
-						placeholder: PLACEHOLDERS.persona,
-						busy: busy?.kind === "field" && busy.key === "persona" && busy.charId === char.id,
-						locked,
-						grow: Boolean(char.personaVoices),
-						titleExtra: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-							type: "button",
-							className: `rounded-full border px-2 py-0.5 text-[11px] leading-none transition ${char.personaVoices ? "border-primary bg-primary text-on-primary" : "border-primary bg-transparent text-primary"}`,
-							disabled: locked,
-							onClick: () => patch({ characters: chat.characters.map((c) => c.id === char.id ? {
-								...c,
-								personaVoices: !c.personaVoices
-							} : c) }),
-							children: "声部"
-						}),
-						onChange: (v) => patch({ characters: chat.characters.map((c) => c.id === char.id ? {
-							...c,
-							persona: v
-						} : c) }),
-						onRegen: () => runField("persona", char.id),
-						onPersonal: () => openPersonalize("persona", char.id)
-					}),
-					chat.isMulti ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-						className: "mb-3 px-1",
-						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CustomAvatar, {
-							blobId: char.wechatAvatarBlobId,
-							label: "自定义微信头像。不上传就用主聊天的头像",
-							onId: (id) => patch({ characters: chat.characters.map((c) => c.id === char.id ? {
-								...c,
-								wechatAvatarBlobId: id
-							} : c) }),
-							onClear: () => patch({ characters: chat.characters.map((c) => c.id === char.id ? {
-								...c,
-								wechatAvatarBlobId: ""
-							} : c) })
-						})
-					}) : null,
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FieldBlock, {
-						label: "说话方式",
-						hint: "语气、口癖、人称、句子长短。例如：软软的、会把「……」拖长。",
-						value: char.speech,
-						placeholder: PLACEHOLDERS.speech,
-						busy: busy?.kind === "field" && busy.key === "speech" && busy.charId === char.id,
-						locked,
-						onChange: (v) => patch({ characters: chat.characters.map((c) => c.id === char.id ? {
-							...c,
-							speech: v
-						} : c) }),
-						onRegen: () => runField("speech", char.id),
-						onPersonal: () => openPersonalize("speech", char.id)
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(LookRef, {
-						blobId: char.lookBlobId,
-						onPick: async (file) => {
-							const id = await saveBlob(await compressRef(file, 768, .82));
-							patch({ characters: chat.characters.map((c) => c.id === char.id ? {
-								...c,
-								lookBlobId: id
-							} : c) });
-						},
-						onBlob: async (blobId) => {
-							const blob = await getImage(blobId);
-							if (!blob) {
-								useApp.getState().toast("这张图已经不在了");
-								return;
-							}
-							const id = await saveBlob(blob);
-							patch({ characters: chat.characters.map((c) => c.id === char.id ? {
-								...c,
-								lookBlobId: id
-							} : c) });
-						},
-						onClear: () => patch({ characters: chat.characters.map((c) => c.id === char.id ? {
-							...c,
-							lookBlobId: ""
-						} : c) })
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FieldBlock, {
-						label: "外貌备忘",
-						hint: "用生图提示词书写。发型发色瞳色体型固定服装写这里。其他栏不用再写外貌。",
-						value: char.appearance,
-						placeholder: PLACEHOLDERS.appearance,
-						busy: busy?.kind === "field" && busy.key === "appearance" && busy.charId === char.id,
-						locked,
-						onChange: (v) => patch({ characters: chat.characters.map((c) => c.id === char.id ? {
-							...c,
-							appearance: v
-						} : c) }),
-						onRegen: () => runField("appearance", char.id),
-						onPersonal: () => openPersonalize("appearance", char.id)
-					})
-				]
-			}),
-			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FieldBlock, {
-				label: "开场场景",
-				hint: "现在在哪里、在做什么、气氛如何。",
-				value: chat.opening,
-				placeholder: PLACEHOLDERS.opening,
-				busy: busy?.kind === "field" && busy.key === "opening",
-				locked,
-				onChange: (v) => patch({ opening: v }),
-				onRegen: () => runField("opening"),
-				onPersonal: () => openPersonalize("opening")
-			}),
-			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
-				className: "mb-3",
-				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					className: "mb-2 flex items-center justify-between",
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-						className: "text-[13px] font-medium",
-						children: "状态栏"
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-						className: "mt-0.5 text-[11px] text-muted",
-						children: "关掉就折叠。打开后，每句回复末尾都会更新这份状态。开启内容按固定骨架，可改冒号后的描述。"
-					})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Switch, {
-						on: chat.statusBarOn,
-						onChange: (v) => patch({
-							statusBarOn: v,
-							statusBar: chat.statusBar?.trim() ? chat.statusBar : DEFAULT_STATUS_BAR
-						})
-					})]
-				}), chat.statusBarOn && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TextArea, {
-					className: "min-h-[200px] font-mono text-[12px]",
-					value: chat.statusBar,
-					onChange: (e) => patch({ statusBar: e.target.value })
-				})]
-			}),
-			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Extras, {
-				extras: chat.extras,
-				onChange: (extras) => patch({ extras })
-			}),
-			mode === "edit" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
-				className: "mb-3",
-				children: [
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FieldLabel, {
-						sub: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-							className: "flex items-center gap-1.5 text-[11px] text-muted",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [
-								"（已对话 ",
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-									className: "text-good",
-									children: memTurns.spoken
-								}),
-								" 轮，已总结到第",
-								" ",
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-									className: "text-good",
-									children: memTurns.folded
-								}),
-								" 轮）"
-							] }), memOk ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Check, { className: "size-3.5 text-good" }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(X, { className: "size-3.5 text-danger" })]
-						}),
-						hint: "聊久了会把更早的剧情压成备忘，下一轮当事实用。聊天里看不见。可改、可重总结、可清空。",
-						children: "长期记忆"
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TextArea, {
-						className: "min-h-[120px]",
-						value: memoryShown,
-						placeholder: memStreaming ? "正在总结…" : "还没有长期记忆。对话变长后会自动整理。",
-						onChange: (e) => {
-							if (memStreaming) return;
-							const text = e.target.value;
-							const snaps = chat.memorySnaps ?? [];
-							const last = snaps[snaps.length - 1];
-							patch({
-								memory: text,
-								memorySnaps: last ? [...snaps.slice(0, -1), {
-									...last,
-									text
-								}] : text ? [{
-									covered: chat.memoryUntil || 0,
-									text,
-									foldAt: chat.memoryFoldAt || 0
-								}] : []
-							});
-						}
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "mt-2 flex gap-2",
-						children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(GhostBtn, {
-								className: "h-10 w-auto min-w-0 flex-1 whitespace-nowrap px-3 text-[13px]",
-								onClick: () => useApp.getState().toast("已保存"),
-								children: "保存"
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(GhostBtn, {
-								className: "h-10 w-auto min-w-0 flex-1 whitespace-nowrap px-3 text-[13px]",
-								onClick: () => {
-									if (locked) return;
-									if (!memReady) {
-										useApp.getState().toast("还不够长，先多聊几轮");
-										return;
-									}
-									setMemPick(true);
-								},
-								children: busy?.kind === "mem" ? "总结中…" : "重新总结"
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(GhostBtn, {
-								className: "h-10 w-auto min-w-0 flex-1 whitespace-nowrap px-3 text-[13px]",
-								onClick: () => {
-									invalidateMemory(chat.id);
-									patch(emptyMemory());
-								},
-								children: "清空"
-							})
-						]
-					})
-				]
-			}),
-			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Modal, {
-				open: memPick,
-				onClose: () => setMemPick(false),
-				title: "重新总结",
-				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-					className: "mb-4 text-[13px] leading-5 text-muted",
-					children: memOk ? "记忆已经齐了。总结到当前只重压最近那一截。" : "记忆还落后。总结到当前会从缺口一次收到位。"
-				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					className: "flex flex-col gap-2",
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PrimaryBtn, {
-						disabled: locked || !memReady,
-						busy: busy?.kind === "mem",
-						onClick: async () => {
-							if (locked) return;
-							setMemPick(false);
-							setBusy({ kind: "mem" });
-							if (await runManualMemory(chat.id, "current")) useApp.getState().toast("已总结到当前");
-							setBusy(null);
-						},
-						children: "总结到当前"
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(GhostBtn, {
-						className: "h-11",
-						disabled: locked || !memReady,
-						onClick: async () => {
-							if (locked) return;
-							setMemPick(false);
-							setBusy({ kind: "mem" });
-							if (await runManualMemory(chat.id, "all")) useApp.getState().toast("已全部重新总结");
-							setBusy(null);
-						},
-						children: "全部重新总结"
-					})]
-				})]
-			}),
-			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "pointer-events-none h-4" }),
-			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				className: "fixed inset-x-0 bottom-0 z-20 mx-auto max-w-lg bg-gradient-to-t from-bg via-bg to-transparent px-4 pb-[calc(env(safe-area-inset-bottom)+12px)] pt-4",
-				children: [
-					mode === "create" && !polished && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PrimaryBtn, {
-						busy: busy?.kind === "all" || busy?.kind === "field",
-						disabled: locked && busy?.kind !== "all" && busy?.kind !== "field",
-						onClick: () => {
-							if (locked) return;
-							runPolish();
-						},
-						children: busy?.kind === "field" ? `完善中(${fieldBusyLabel})` : busy?.kind === "all" ? "完善中" : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Sparkles, { className: "size-4" }), " 让 Grok 完善设定"] })
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(GhostBtn, {
-						className: "mt-2",
-						disabled: locked,
-						onClick: () => void startChat(),
-						children: "跳过，开始聊天"
-					})] }),
-					mode === "create" && polished && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PrimaryBtn, {
-							busy: busy?.kind === "field",
-							disabled: locked,
-							onClick: () => {
-								if (locked) return;
-								startChat();
-							},
-							children: busy?.kind === "field" ? `完善中(${fieldBusyLabel})` : "可以了，开始聊天"
-						}),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(GhostBtn, {
-							className: "mt-2",
-							disabled: locked && busy?.kind !== "all",
-							onClick: () => void runPolish(),
-							children: busy?.kind === "all" ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(LoaderCircle, { className: "size-4 animate-spin" }), " 完善中"] }) : "让 Grok 完善设定"
-						}),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(GhostBtn, {
-							className: "mt-2",
-							disabled: locked && busy?.kind !== "personalize",
-							onClick: () => openPersonalize("all"),
-							children: busy?.kind === "personalize" ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(LoaderCircle, { className: "size-4 animate-spin" }), " 完善中"] }) : "让 Grok 个性化修改"
-						})
-					] }),
-					mode === "edit" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PrimaryBtn, {
-							busy: busy?.kind === "field",
-							disabled: locked,
-							onClick: () => {
-								if (locked) return;
-								startChat();
-							},
-							children: busy?.kind === "field" ? `完善中(${fieldBusyLabel})` : "确认保存"
-						}),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(GhostBtn, {
-							className: "mt-2",
-							disabled: locked && busy?.kind !== "all",
-							onClick: () => void runPolish(),
-							children: busy?.kind === "all" ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(LoaderCircle, { className: "size-4 animate-spin" }), " 完善中"] }) : "让 Grok 完善设定"
-						}),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(GhostBtn, {
-							className: "mt-2",
-							disabled: locked && busy?.kind !== "personalize",
-							onClick: () => openPersonalize("all"),
-							children: busy?.kind === "personalize" ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(LoaderCircle, { className: "size-4 animate-spin" }), " 完善中"] }) : "让 Grok 个性化修改"
-						}),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-							className: "mt-2 w-full py-2 text-[13px] text-muted",
-							onClick: () => useApp.getState().cancelEdit(),
-							children: "取消"
-						})
-					] }),
-					mode === "create" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-						className: "mt-2 w-full py-2 text-[13px] text-muted",
-						onClick: () => useApp.getState().cancelDraft(),
-						children: "取消"
-					})
-				]
-			})
-		]
-	});
-}
-function FieldBlock({ label, hint, value, placeholder, onChange, onRegen, onPersonal, busy, locked, single, titleExtra, grow }) {
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
-		className: "mb-3",
-		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FieldLabel, {
-			hint,
-			right: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-				className: "flex gap-1",
-				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-					className: "grid size-8 place-items-center rounded-full hover:bg-dim disabled:opacity-40",
-					onClick: onRegen,
-					disabled: locked,
-					title: "重新生成",
-					children: busy ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LoaderCircle, { className: "size-4 animate-spin" }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(RefreshCw, { className: "size-4 text-muted" })
-				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-					className: "grid size-8 place-items-center rounded-full hover:bg-dim disabled:opacity-40",
-					onClick: onPersonal,
-					disabled: locked,
-					title: "个性化",
-					children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Sparkles, { className: "size-4 text-muted" })
-				})]
-			}),
-			children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-				className: "inline-flex items-center gap-1.5",
-				children: [label, titleExtra]
-			})
-		}), single ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TextInput, {
-			value,
-			placeholder,
-			onChange: (e) => onChange(e.target.value)
-		}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TextArea, {
-			value,
-			placeholder,
-			rows: grow ? 12 : 5,
-			className: grow ? "min-h-[calc(1.5rem+12*1.625em)]" : "min-h-[calc(1.5rem+5*1.625em)]",
-			onChange: (e) => onChange(e.target.value)
-		})]
-	});
-}
-function clampCrop(scale, ox, oy, sMin, sMax, diameter, natW, natH) {
-	const s = Math.min(sMax, Math.max(sMin, scale));
-	const limX = Math.max(0, (natW * s - diameter) / 2);
-	const limY = Math.max(0, (natH * s - diameter) / 2);
-	return {
-		scale: s,
-		ox: Math.min(limX, Math.max(-limX, ox)),
-		oy: Math.min(limY, Math.max(-limY, oy))
-	};
-}
-function AvatarCrop({ src, onCancel, onDone }) {
-	const stageRef = (0, import_react.useRef)(null);
-	const imgRef = (0, import_react.useRef)(null);
-	const [box, setBox] = (0, import_react.useState)({
-		w: 0,
-		h: 0
-	});
-	const [nat, setNat] = (0, import_react.useState)({
-		w: 0,
-		h: 0
-	});
-	const [view, setView] = (0, import_react.useState)(null);
-	const [busy, setBusy] = (0, import_react.useState)(false);
-	const pointers = (0, import_react.useRef)(/* @__PURE__ */ new Map());
-	const gesture = (0, import_react.useRef)(null);
-	const diameter = Math.min(box.w, box.h) * .78;
-	const ready = nat.w > 0 && diameter > 0;
-	const sMin = ready ? Math.max(diameter / nat.w, diameter / nat.h) : 1;
-	const sMax = sMin * 4;
-	const shown = view ?? {
-		scale: sMin,
-		ox: 0,
-		oy: 0
-	};
-	const viewRef = (0, import_react.useRef)(shown);
-	viewRef.current = shown;
-	const geo = (0, import_react.useRef)({
-		sMin,
-		sMax,
-		diameter,
-		natW: nat.w,
-		natH: nat.h
-	});
-	geo.current = {
-		sMin,
-		sMax,
-		diameter,
-		natW: nat.w,
-		natH: nat.h
-	};
-	(0, import_react.useEffect)(() => {
-		const el = stageRef.current;
-		if (!el) return;
-		const measure = () => setBox({
-			w: el.clientWidth,
-			h: el.clientHeight
-		});
-		measure();
-		const ro = new ResizeObserver(measure);
-		ro.observe(el);
-		return () => ro.disconnect();
-	}, []);
-	(0, import_react.useEffect)(() => {
-		setView((v) => {
-			const g = geo.current;
-			if (!v || !g.natW || !g.diameter) return v;
-			const next = clampCrop(v.scale, v.ox, v.oy, g.sMin, g.sMax, g.diameter, g.natW, g.natH);
-			if (next.scale === v.scale && next.ox === v.ox && next.oy === v.oy) return v;
-			viewRef.current = next;
-			return next;
-		});
-	}, [
-		box.w,
-		box.h,
-		nat.w,
-		nat.h
-	]);
-	const apply = (scale, ox, oy) => {
-		const g = geo.current;
-		const next = clampCrop(scale, ox, oy, g.sMin, g.sMax, g.diameter, g.natW, g.natH);
-		viewRef.current = next;
-		setView(next);
-	};
-	const begin = () => {
-		const pts = [...pointers.current.values()];
-		const v = viewRef.current;
-		if (pts.length >= 2) {
-			const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) || 1;
-			gesture.current = {
-				ox: v.ox,
-				oy: v.oy,
-				scale: v.scale,
-				x: 0,
-				y: 0,
-				dist,
-				mx: (pts[0].x + pts[1].x) / 2,
-				my: (pts[0].y + pts[1].y) / 2
-			};
-		} else if (pts.length === 1) gesture.current = {
-			ox: v.ox,
-			oy: v.oy,
-			scale: v.scale,
-			x: pts[0].x,
-			y: pts[0].y,
-			dist: 0,
-			mx: pts[0].x,
-			my: pts[0].y
-		};
-		else gesture.current = null;
-	};
-	const onPointerDown = (e) => {
-		if (!ready) return;
-		e.currentTarget.setPointerCapture(e.pointerId);
-		pointers.current.set(e.pointerId, {
-			x: e.clientX,
-			y: e.clientY
-		});
-		begin();
-	};
-	const onPointerMove = (e) => {
-		if (!pointers.current.has(e.pointerId)) return;
-		pointers.current.set(e.pointerId, {
-			x: e.clientX,
-			y: e.clientY
-		});
-		const g = gesture.current;
-		if (!g) return;
-		const pts = [...pointers.current.values()];
-		if (pts.length >= 2) {
-			const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) || 1;
-			const mx = (pts[0].x + pts[1].x) / 2;
-			const my = (pts[0].y + pts[1].y) / 2;
-			const scale = g.scale * (dist / g.dist);
-			const k = scale / g.scale;
-			apply(scale, g.ox * k + (mx - g.mx), g.oy * k + (my - g.my));
-		} else apply(g.scale, g.ox + (e.clientX - g.x), g.oy + (e.clientY - g.y));
-	};
-	const onPointerUp = (e) => {
-		pointers.current.delete(e.pointerId);
-		begin();
-	};
-	(0, import_react.useEffect)(() => {
-		const el = stageRef.current;
-		if (!el) return;
-		const onWheel = (e) => {
-			if (!geo.current.natW) return;
-			e.preventDefault();
-			const v = viewRef.current;
-			const factor = e.deltaY < 0 ? 1.06 : 1 / 1.06;
-			const g = geo.current;
-			const next = clampCrop(v.scale * factor, v.ox * factor, v.oy * factor, g.sMin, g.sMax, g.diameter, g.natW, g.natH);
-			viewRef.current = next;
-			setView(next);
-		};
-		el.addEventListener("wheel", onWheel, { passive: false });
-		return () => el.removeEventListener("wheel", onWheel);
-	}, []);
-	const finish = () => {
-		const img = imgRef.current;
-		const g = geo.current;
-		if (!img || !g.natW || !g.diameter || busy) return;
-		setBusy(true);
-		const { scale, ox, oy } = viewRef.current;
-		const dw = g.natW * scale;
-		const dh = g.natH * scale;
-		const sw = g.diameter / scale;
-		const sh = g.diameter / scale;
-		const sx = Math.max(0, Math.min(g.natW - sw, ((dw - g.diameter) / 2 - ox) / scale));
-		const sy = Math.max(0, Math.min(g.natH - sh, ((dh - g.diameter) / 2 - oy) / scale));
-		const canvas = document.createElement("canvas");
-		canvas.width = 512;
-		canvas.height = 512;
-		const ctx = canvas.getContext("2d");
-		if (!ctx) {
-			setBusy(false);
-			return;
-		}
-		ctx.drawImage(img, sx, sy, sw, sh, 0, 0, 512, 512);
-		canvas.toBlob((blob) => {
-			if (!blob) {
-				setBusy(false);
-				return;
-			}
-			onDone(blob);
-		}, "image/jpeg", .9);
-	};
-	const dw = nat.w * shown.scale;
-	const dh = nat.h * shown.scale;
-	const cx = box.w / 2;
-	const cy = box.h / 2;
-	return (0, import_react_dom.createPortal)(/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-		className: "fixed inset-0 z-[100] flex flex-col bg-black text-white",
-		children: [
-			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				className: "flex shrink-0 items-center px-1 pt-[max(8px,env(safe-area-inset-top))]",
-				children: [
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-						type: "button",
-						className: "grid size-11 place-items-center",
-						"aria-label": "返回",
-						onClick: onCancel,
-						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChevronLeft, { className: "size-6" })
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-						className: "flex-1 text-center text-[16px]",
-						children: "移动和缩放"
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "size-11" })
-				]
-			}),
-			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				ref: stageRef,
-				className: "relative min-h-0 flex-1 touch-none overflow-hidden",
-				onPointerDown,
-				onPointerMove,
-				onPointerUp,
-				onPointerCancel: onPointerUp,
-				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
-					ref: imgRef,
-					src,
-					alt: "",
-					draggable: false,
-					onLoad: (e) => setNat({
-						w: e.currentTarget.naturalWidth,
-						h: e.currentTarget.naturalHeight
-					}),
-					onError: onCancel,
-					className: "absolute max-w-none select-none",
-					style: {
-						width: dw || void 0,
-						height: dh || void 0,
-						left: cx + shown.ox - dw / 2,
-						top: cy + shown.oy - dh / 2,
-						opacity: ready ? 1 : 0
-					}
-				}), ready ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-					className: "pointer-events-none absolute rounded-full border border-white/90",
-					style: {
-						width: diameter,
-						height: diameter,
-						left: cx - diameter / 2,
-						top: cy - diameter / 2,
-						boxShadow: "0 0 0 9999px rgba(0,0,0,0.55)"
-					}
-				}) : null]
-			}),
-			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-				className: "flex shrink-0 justify-end px-4 pb-[max(16px,env(safe-area-inset-bottom))] pt-3",
-				children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-					type: "button",
-					className: "rounded-full bg-primary px-6 py-2 text-[15px] text-on-primary disabled:opacity-40",
-					disabled: !ready || busy,
-					onClick: finish,
-					children: "完成"
-				})
-			})
-		]
-	}), document.body);
-}
-function CustomAvatar({ blobId, onId, onClear, label = "自定义头像。不上传就用第一张生成的图" }) {
-	const [url, setUrl] = (0, import_react.useState)(null);
-	const [crop, setCrop] = (0, import_react.useState)(null);
-	(0, import_react.useEffect)(() => {
-		if (!blobId) {
-			setUrl(null);
-			return;
-		}
-		let dead = false;
-		imageUrl(blobId).then((u) => {
-			if (!dead) setUrl(u);
-		});
-		return () => {
-			dead = true;
-		};
-	}, [blobId]);
-	(0, import_react.useEffect)(() => {
-		return () => {
-			if (crop) URL.revokeObjectURL(crop);
-		};
-	}, [crop]);
-	const openCrop = (blob) => {
-		setCrop((prev) => {
-			if (prev) URL.revokeObjectURL(prev);
-			return URL.createObjectURL(blob);
-		});
-	};
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-		className: "mt-3 flex items-center gap-2",
-		children: [
-			url ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				className: "relative",
-				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ZoomImg, {
-					src: url,
-					className: "size-16 rounded-full object-cover"
-				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-					type: "button",
-					className: "absolute -right-1 -top-1 z-10 grid size-5 place-items-center rounded-full bg-card text-ink",
-					"aria-label": "去掉自定义头像",
-					onClick: onClear,
-					children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(X, { className: "size-3" })
-				})]
-			}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ImagePick, {
-				onFile: (file) => openCrop(file),
-				onBlob: async (id) => {
-					const blob = await getImage(id);
-					if (!blob) {
-						useApp.getState().toast("这张图已经不在了");
-						return;
-					}
-					openCrop(blob);
-				},
-				render: (open) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-					type: "button",
-					className: "grid size-9 place-items-center rounded-full border border-line text-muted",
-					"aria-label": "上传自定义头像",
-					onClick: open,
-					children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Plus, { className: "size-4" })
-				})
-			}),
-			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-				className: "text-[12px] text-muted",
-				children: label
-			}),
-			crop ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AvatarCrop, {
-				src: crop,
-				onCancel: () => setCrop(null),
-				onDone: (blob) => {
-					saveBlob(blob).then(onId);
-					setCrop(null);
-				}
-			}) : null
-		]
-	});
-}
-function LookRef({ blobId, onPick, onBlob, onClear }) {
-	const [url, setUrl] = (0, import_react.useState)(null);
-	(0, import_react.useEffect)(() => {
-		if (!blobId) {
-			setUrl(null);
-			return;
-		}
-		let dead = false;
-		imageUrl(blobId).then((u) => {
-			if (!dead) setUrl(u);
-		});
-		return () => {
-			dead = true;
-		};
-	}, [blobId]);
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-		className: "mb-3 flex items-center gap-2 px-1",
-		children: [url ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-			className: "relative",
-			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ZoomImg, {
-				src: url,
-				className: "size-16 rounded-[12px] object-cover"
-			}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-				type: "button",
-				className: "absolute -right-1 -top-1 z-10 grid size-5 place-items-center rounded-full bg-card text-ink",
-				"aria-label": "去掉外貌备忘",
-				onClick: onClear,
-				children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(X, { className: "size-3" })
-			})]
-		}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ImagePick, {
-			onFile: onPick,
-			onBlob,
-			render: (open) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-				type: "button",
-				className: "grid size-9 place-items-center rounded-full border border-line text-muted",
-				"aria-label": "上传外貌备忘",
-				onClick: open,
-				children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Plus, { className: "size-4" })
-			})
-		}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-			className: "text-[12px] text-muted",
-			children: "外貌备忘的样子，只给聊天看"
-		})]
-	});
-}
-function Extras({ extras, onChange }) {
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-		className: "mb-3",
-		children: [extras.map((e, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
-			className: "mb-2",
-			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				className: "mb-1 flex items-center justify-between gap-2",
-				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					className: "text-[13px] font-medium",
-					children: ["新增", i + 1]
-				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					className: "flex items-center gap-2",
-					children: [
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-							type: "button",
-							className: `rounded-full border px-2 py-0.5 text-[11px] leading-none transition ${e.emphasize ? "border-primary bg-primary text-on-primary" : "border-primary bg-transparent text-primary"}`,
-							onClick: () => onChange(extras.map((x) => x.id === e.id ? {
-								...x,
-								emphasize: !x.emphasize
-							} : x)),
-							children: "强调"
-						}),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-							type: "button",
-							className: `rounded-full border px-2 py-0.5 text-[11px] leading-none transition ${e.applyImage ? "border-primary bg-primary text-on-primary" : "border-primary bg-transparent text-primary"}`,
-							onClick: () => onChange(extras.map((x) => x.id === e.id ? {
-								...x,
-								applyImage: !x.applyImage
-							} : x)),
-							children: "应用到生图"
-						}),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-							className: "text-danger",
-							onClick: () => onChange(extras.filter((x) => x.id !== e.id)),
-							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Trash2, { className: "size-4" })
-						})
-					]
-				})]
-			}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TextArea, {
-				value: e.body,
-				onChange: (ev) => onChange(extras.map((x) => x.id === e.id ? {
-					...x,
-					body: ev.target.value
-				} : x))
-			})]
-		}, e.id)), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-			className: "flex items-center gap-1 px-2 py-2 text-[13px] text-primary",
-			onClick: () => onChange([...extras, {
-				id: uid("ex_"),
-				body: ""
-			}]),
-			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Plus, { className: "size-4" }), " 新增"]
-		})]
-	});
-}
-function CardSelect({ onPick }) {
-	const ordered = useApp((s) => s.cards).slice().sort((a, b) => a.order - b.order);
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LibraryDrawer, {
-		className: "flex-1",
-		label: "角色卡选择",
-		items: ordered.map((c) => ({
-			id: c.id,
-			name: c.name
-		})),
-		onApply: onPick,
-		onDelete: (id) => useApp.getState().deleteCard(id),
-		onReorder: (ids) => useApp.getState().reorderCards(ids)
-	});
 }
 var HOLD_MS = 420;
 function Sidebar() {
@@ -15808,7 +16571,9 @@ function Shell() {
 					}),
 					tab === "chat" && chat && !chat.isDraft ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(WechatDock, { chat }) : null,
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Sidebar, {}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ConnectionPanel, {})
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ConnectionPanel, {}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardEditSheet, {}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(AppearEditSheet, {})
 				]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ToastHost, {}),
@@ -16126,7 +16891,7 @@ function MultiCreateModal() {
 					const draft = makeDraft();
 					pushDraft(draft);
 					useApp.getState().commitChat(draft.id);
-					const { sendOpening } = await import("./chat-actions-DO1JNA53.mjs");
+					const { sendOpening } = await import("./chat-actions-TMj17Ods.mjs");
 					sendOpening(draft.id);
 				},
 				children: "跳过，开始聊天"
@@ -16141,4 +16906,4 @@ function Home() {
 	});
 }
 //#endregion
-export { imagePresetStyle as A, pruneStarred as B, defaultSettings as C, idb_exports as D, getImage as E, loadAll as F, restoreSampler as G, randomSeed as H, moveId as I, sortHistoryNewestFirst as J, samplerPatch as K, nearestScroller as L, imageWriteFields as M, indexFromY as N, imageAiLabel as O, llmIdentity as P, wechatPresetStyle as Q, parseChatCompletionPreset as R, db as S, downloadBlob as T, rememberUrl as U, putImage as V, resolveImageWrite as W, uniqueNumberedName as X, uid as Y, uniquePresetName as Z, applyLlmPick as _, cancelMemory as a, chatPickerModels as b, regenMessage as c, Home as component, sendOpening as d, sendUser as f, applyImageAiPick as g, activePreset as h, cancelImage as i, imageUrl as j, imagePickerModels as k, retryMemory as l, FOLLOW_IMAGE_AI as m, attachImage as n, editMessage as o, routes_DVYFvhLo_exports as p, snapshotLlmAccount as q, branchFrom as r, invalidateMemory as s, abortChat as t, runManualMemory as u, autoScrollNearEdge as v, deleteImage as w, cn as x, cachedUrl as y, presetStyle as z };
+export { imagePresetStyle as A, pruneStarred as B, defaultSettings as C, idb_exports as D, getImage as E, loadAll as F, restoreSampler as G, randomSeed as H, moveId as I, sortHistoryNewestFirst as J, samplerPatch as K, nearestScroller as L, imageWriteFields as M, indexFromY as N, imageAiLabel as O, llmIdentity as P, wechatPresetStyle as Q, parseChatCompletionPreset as R, db as S, downloadBlob as T, rememberUrl as U, putImage as V, resolveImageWrite as W, uniqueNumberedName as X, uid as Y, uniquePresetName as Z, applyLlmPick as _, cancelMemory as a, chatPickerModels as b, regenMessage as c, Home as component, sendOpening as d, sendUser as f, applyImageAiPick as g, activePreset as h, cancelImage as i, imageUrl as j, imagePickerModels as k, retryMemory as l, FOLLOW_IMAGE_AI as m, attachImage as n, editMessage as o, routes_0c1R9zPH_exports as p, snapshotLlmAccount as q, branchFrom as r, invalidateMemory as s, abortChat as t, runManualMemory as u, autoScrollNearEdge as v, deleteImage as w, cn as x, cachedUrl as y, presetStyle as z };

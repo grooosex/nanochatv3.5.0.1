@@ -10,6 +10,8 @@ import { uid } from "@/lib/utils";
 import { ChatPane, CustomPromptModal } from "./ChatPane";
 import { WechatDock } from "./WechatPane";
 import { ConnectionPanel } from "./ConnectionPanel";
+import { CardEditSheet } from "./CardEditSheet";
+import { AppearEditSheet } from "./AppearEditSheet";
 import { ParamsPane } from "./ParamsPane";
 import { PurePane } from "./PurePane";
 import { RoleEditor } from "./RoleEditor";
@@ -76,6 +78,8 @@ function Shell() {
         {tab === "chat" && chat && !chat.isDraft ? <WechatDock chat={chat} /> : null}
         <Sidebar />
         <ConnectionPanel />
+        <CardEditSheet />
+        <AppearEditSheet />
       </main>
 
       <ToastHost />

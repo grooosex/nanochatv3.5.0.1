@@ -265,6 +265,8 @@ export interface CharacterCard {
   statusBar: string;
   characters: Character[];
   grokModelId: GrokModelId;
+  /** 整张卡一张。老卡没有这张图，空着就表示没存。 */
+  customAvatarBlobId?: string;
   createdAt: number;
   order: number;
 }

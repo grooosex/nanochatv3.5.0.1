@@ -217,6 +217,7 @@ export function RoleEditor({ chat, mode }: { chat: Chat; mode: "create" | "edit"
               const card = cards.find((c) => c.id === id);
               if (card) useApp.getState().applyCard(chat.id, card, chat.isMulti ? charSel : undefined);
             }}
+            onEdit={(id) => useApp.getState().setUI({ editCardId: id })}
           />
         </div>
       </div>
@@ -975,7 +976,7 @@ function AvatarCrop({ src, onCancel, onDone }: { src: string; onCancel: () => vo
   );
 }
 
-function CustomAvatar({
+export function CustomAvatar({
   blobId,
   onId,
   onClear,
@@ -1064,7 +1065,7 @@ function CustomAvatar({
   );
 }
 
-function LookRef({
+export function LookRef({
   blobId,
   onPick,
   onBlob,
@@ -1124,7 +1125,7 @@ function LookRef({
   );
 }
 
-function Extras({ extras, onChange }: { extras: ExtraField[]; onChange: (e: ExtraField[]) => void }) {
+export function Extras({ extras, onChange }: { extras: ExtraField[]; onChange: (e: ExtraField[]) => void }) {
   return (
     <div className="mb-3">
       {extras.map((e, i) => (
@@ -1179,7 +1180,7 @@ function Extras({ extras, onChange }: { extras: ExtraField[]; onChange: (e: Extr
   );
 }
 
-function CardSelect({ onPick }: { onPick: (id: string) => void }) {
+function CardSelect({ onPick, onEdit }: { onPick: (id: string) => void; onEdit: (id: string) => void }) {
   const cards = useApp((s) => s.cards);
   const ordered = cards.slice().sort((a, b) => a.order - b.order);
   return (
@@ -1188,6 +1189,7 @@ function CardSelect({ onPick }: { onPick: (id: string) => void }) {
       label="角色卡选择"
       items={ordered.map((c) => ({ id: c.id, name: c.name }))}
       onApply={onPick}
+      onEdit={onEdit}
       onDelete={(id) => useApp.getState().deleteCard(id)}
       onReorder={(ids) => useApp.getState().reorderCards(ids)}
     />
